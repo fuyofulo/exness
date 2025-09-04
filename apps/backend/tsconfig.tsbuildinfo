@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/routes/balance.ts","./src/routes/trade.ts","./src/routes/user.ts","./src/services/sendEmail.ts"],"version":"5.9.2"}
