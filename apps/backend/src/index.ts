@@ -7,6 +7,12 @@ import { balanceRouter } from './routes/balance';
 const app = express();
 app.use(express.json());
 
+const supportedAssets = [
+    'SOL_USDC',
+    'ETH_USDC',
+    'BTC_USDC', 
+];
+
 app.use('/api/v1/user', userRouter);
 app.use('/api/v1/trade', tradeRouter);
 app.use('/api/v1/balance', balanceRouter);
@@ -25,5 +31,5 @@ app.get('/', async (req, res) => {
 })
 
 app.get('/api/v1/supportedAssets', async (req, res) => {
-
+    res.json(supportedAssets);
 })
