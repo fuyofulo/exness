@@ -52,7 +52,7 @@ ws.on('open', async () => {
                 data: JSON.stringify(Array.from(latestPrices.values())),
                 timestamp: Date.now().toString()
             });
-            console.log(`wrote to stream ${messageID}`);
+            // console.log(`wrote to stream ${messageID}`);
             }
     }, 100);
     

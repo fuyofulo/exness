@@ -4,6 +4,8 @@ const STREAM_NAME: string = 'engine_input';
 const GROUP_NAME: string = 'engine_group';
 const CONSUMER_NAME: string = 'engine_1';
 
+const ENGINE_RESPONSE = 'engine_response';
+
 // Interface for the latest price
 export type LatestPrice = {
     asset: string;
@@ -52,18 +54,37 @@ export async function listenToPrice(rClient: RedisClientType) {
                                         `price:${price.asset}`, 15, JSON.stringify(price)
                                     );
                                     // console.log(`upserted price for ${price.asset}`, price);
-                                    // console.log('poller')
+                                    await rClient.xAck(STREAM_NAME, GROUP_NAME, message.id);
                                 }
                             }
                         } else if(source === 'backend') {
                             const { orderId, response_stream, tradeData } = data;
                             const parsedTradeData = JSON.parse(tradeData);
                             console.log(`Processing order ${orderId}`, parsedTradeData);
+                            
+                            try {
+                                await rClient.xAck(STREAM_NAME, GROUP_NAME, message.id);
+                                console.log(`Acknowledged message ${message.id}`);
+                                
+                                const responseData = {
+                                    orderId: orderId,
+                                    status: 'processed',
+                                    data: JSON.stringify({
+                                        orderId: orderId,
+                                        status: 'processed',
+                                        tradeData: parsedTradeData
+                                    })
+                                };
+                                
+                                console.log(`Sending response to engine_response stream:`, responseData);
+                                const responseId = await rClient.xAdd(ENGINE_RESPONSE, '*', responseData);
+                                console.log(`Response sent with ID: ${responseId}`);
+                            } catch (error) {
+                                console.error('Error processing backend order:', error);
+                            }
                         } else {
                             console.log(`bull shit source ${source}`)
-                        }
-                        
-                        await rClient.xAck(STREAM_NAME, GROUP_NAME, message.id);
+                        }   
                     }
                 }
             }

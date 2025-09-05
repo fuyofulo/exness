@@ -3,6 +3,10 @@ const app = router();
 import { v4 as uuidv4 } from "uuid";
 import { createSpotOrderSchema, createCfdOrderSchema } from '../types';
 import { createClient } from 'redis';
+import { RedisSuscriber } from '../utils/orderResponse';
+
+// Create a singleton subscriber instance
+const subscriber = new RedisSuscriber();
 
 interface CreateOrder {
     asset: string;
@@ -17,6 +21,7 @@ const SOURCE: string = 'backend';
 
 
 app.post('/create', async (req, res) => {
+    const startTime = Date.now();
     console.log('create order endpoint has been hit');
 
     try {
@@ -26,6 +31,8 @@ app.post('/create', async (req, res) => {
         //         message: 'email not found'
         //     })
         // }
+
+        const email = "hello123@gmail.com";
 
         const tradeData: CreateOrder = req.body;
         const orderId = uuidv4();
@@ -37,44 +44,28 @@ app.post('/create', async (req, res) => {
         const messageID = await rClient.xAdd(STREAM_NAME, '*', {
             source: SOURCE,
             data: JSON.stringify({
-                // email: email,
+                email: email,
                 orderId: orderId,
                 response_stream: response_stream,
                 tradeData: JSON.stringify(tradeData),
             }),
             timestamp: Date.now().toString()
         })
+        console.log(`order send to engine ${messageID}`);
 
+        console.log(`waiting for response from engine ${orderId}`);
+        const responseFromEngine = await subscriber.waitForMessage(orderId);
+        console.log(`response from engine ${responseFromEngine}`);
+
+        const endTime = Date.now();
+        const latency = endTime - startTime;
         res.json({
-            'job done for new order': messageID
+            'job done for new order': messageID,
+            latency: latency
         })
     } catch {
 
     }
-
-    // const orderType = req.body.orderType;
-    // if(orderType === 'SPOT') {
-    //     const parsedData = createSpotOrderSchema.parse(req.body);
-    //     if(!parsedData) {
-    //         console.log('Invalid spot order body');
-    //         res.json({
-    //             message: 'invalid spot order body'
-    //         })
-    //     }
-    // } else if(orderType === 'CFD') {
-    //     const parsedData = createCfdOrderSchema.parse(req.body);
-    //     if(!parsedData) {
-    //         console.log('Invalid cfd order body');
-    //         res.json({
-    //             message: 'invalid cfd order body'
-    //         })
-    //     }
-    // } else {
-    //     console.log('Invalid order type');
-    //     res.json({
-    //         message: 'invalid order type'
-    //     })
-    // }
 })
 
 app.post('/close', async (req, res) => {
