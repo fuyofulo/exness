@@ -5,6 +5,11 @@ import { EMAIL_JWT_SECRET, AUTH_JWT_SECRET } from '@repo/config';
 
 const app = router();
 
+if(!EMAIL_JWT_SECRET || !AUTH_JWT_SECRET) {
+    console.log('EMAIL_JWT_SECRET or AUTH_JWT_SECRET is not set');
+    process.exit(1);
+}
+
 app.post('/signup', async (req, res) => {
 
     const email = req.body.email;

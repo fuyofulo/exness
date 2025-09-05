@@ -1,4 +1,4 @@
-import { connectRedis, upsertLatestPrice, readFromStream, createConsumerGroup, ackMessage } from '@repo/redis';
+import { createClient } from 'redis';
 
 export type LatestPrice = {
     asset: string;
@@ -6,35 +6,57 @@ export type LatestPrice = {
     decimal: number;
 }
 
+const STREAM_NAME: string = 'engine_input';
+const GROUP_NAME: string = 'engine_group';
+const CONSUMER_NAME: string = 'engine_1';
+
 // In-memory price cache
 const priceCache = new Map<string, LatestPrice>();
 
 async function main() {
-    await connectRedis();
     
-    // Initialize consumer group
-    await createConsumerGroup('price_updates', 'engine');
+    const rClient = createClient();
+    await rClient.connect();
+
+    // Create the consumer group
+    try {
+        await rClient.xGroupCreate(STREAM_NAME, GROUP_NAME, '0', { MKSTREAM: true });
+    } catch (_) {
+        // group already exists so chillax
+    }
     
     console.log('Engine started, listening for price updates...');
     
     // Process price updates from stream
     while (true) {
         try {
-            const messages = await readFromStream('price_updates', 'engine', 'engine-worker');
+            const messages = await rClient.xReadGroup ( GROUP_NAME, CONSUMER_NAME, 
+                {
+                    key: STREAM_NAME,
+                    id: '>'
+                }, 
+                {
+                    COUNT: 10,
+                    BLOCK: 5000
+                }
+            )            
             
-            for (const stream of messages) {
-                for (const message of stream.messages) {
-                    const data = JSON.parse(message.message.data);
-                    
-                    // Update price cache
-                    for (const price of data) {
-                        priceCache.set(price.asset, price);
-                        await upsertLatestPrice(price as LatestPrice);
-                        console.log(`upserted price for ${price.asset}`, price);
+            // Check if messages is not null before iterating
+            if (messages) {
+                for (const stream of messages as any) {
+                    for (const message of stream.messages) {
+                        const data = JSON.parse(message.message.data);
+                        if(Array.isArray(data)) {
+                            for (const price of data) {
+                                priceCache.set(price.asset, price);
+                                await rClient.setEx(
+                                    `price:${price.asset}`, 15, JSON.stringify(price)
+                                );
+                                console.log(`upserted price for ${price.asset}`, price);
+                            }
+                            await rClient.xAck(STREAM_NAME, GROUP_NAME, message.id);
+                        }
                     }
-                    
-                    // Acknowledge message processing
-                    await ackMessage('price_updates', 'engine', message.id);
                 }
             }
         } catch (err) {

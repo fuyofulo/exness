@@ -1,5 +1,6 @@
 import WebSocket from 'ws';
 import { connectRedis, writeToStream } from '@repo/redis';
+import { createClient } from 'redis';
 const ws = new WebSocket(('wss://ws.backpack.exchange/'));
 
 const assets: string[] = ['BTC_USDC', 'ETH_USDC', 'SOL_USDC'];
@@ -22,8 +23,10 @@ function checkDecimals (value: string) {
     }
 }
 
-
 ws.on('open', async () => {
+
+    const rClient = createClient();
+    await rClient.connect();
 
     console.log('Connected to the WebSocket');
     await connectRedis();
@@ -41,19 +44,19 @@ ws.on('open', async () => {
     setInterval(async () => {
         const priceUpdates: priceUpdate[] = Array.from(latestPrices.values());
         if (priceUpdates.length > 0) {
-            let messageId = await writeToStream('price_updates', {
-                data: JSON.stringify(priceUpdates),
+            let messageID = await rClient.xAdd('engine_input', '*', {
+                source: 'poller',
+                data: JSON.stringify(Array.from(latestPrices.values())),
                 timestamp: Date.now().toString()
             });
-            console.log(`wrote to stream ${messageId}`);
-        }
+            console.log(`wrote to stream ${messageID}`);
+            }
     }, 100);
     
 });
 
 ws.on('message', (data) => {
     const parsedData = JSON.parse(data.toString());
-    // console.log(parsedData);
 
     if(parsedData.data.e === 'bookTicker') {
 

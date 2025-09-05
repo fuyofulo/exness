@@ -1,5 +1,9 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+
+// Load .env from the config package directory explicitly so consumers (e.g., apps/backend)
+// get consistent env loading regardless of their current working directory.
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 export const REDIS_URL = process.env.REDIS_URL as string;
 export const GOOGLE_EMAIL = process.env.GOOGLE_EMAIL as string;
