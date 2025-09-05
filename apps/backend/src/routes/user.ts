@@ -1,6 +1,6 @@
 import router from 'express';
 import jwt from 'jsonwebtoken';
-import { sendSignupEmail } from '../services/sendEmail';
+import { sendSignupEmail } from '../utils/sendEmail';
 import { EMAIL_JWT_SECRET, AUTH_JWT_SECRET } from '@repo/config';
 
 const app = router();

@@ -12,6 +12,9 @@ interface priceUpdate {
     decimal: number
 }
 
+const STREAM_NAME: string = 'engine_input';
+const SOURCE: string = 'poller';
+
 // Store latest prices for each asset
 const latestPrices: Map<string, priceUpdate> = new Map();
 
@@ -44,8 +47,8 @@ ws.on('open', async () => {
     setInterval(async () => {
         const priceUpdates: priceUpdate[] = Array.from(latestPrices.values());
         if (priceUpdates.length > 0) {
-            let messageID = await rClient.xAdd('engine_input', '*', {
-                source: 'poller',
+            let messageID = await rClient.xAdd(STREAM_NAME, '*', {
+                source: SOURCE,
                 data: JSON.stringify(Array.from(latestPrices.values())),
                 timestamp: Date.now().toString()
             });

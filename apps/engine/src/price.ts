@@ -42,16 +42,28 @@ export async function listenToPrice(rClient: RedisClientType) {
                 for (const stream of messages as any) {
                     for (const message of stream.messages) {
                         const data = JSON.parse(message.message.data);
-                        if(Array.isArray(data)) {
-                            for (const price of data) {
-                                priceCache.set(price.asset, price);
-                                await rClient.setEx(
-                                    `price:${price.asset}`, 15, JSON.stringify(price)
-                                );
-                                console.log(`upserted price for ${price.asset}`, price);
+                        const source = message.message.source;
+
+                        if(source === 'poller') {
+                            if(Array.isArray(data)) {
+                                for (const price of data) {
+                                    priceCache.set(price.asset, price);
+                                    await rClient.setEx(
+                                        `price:${price.asset}`, 15, JSON.stringify(price)
+                                    );
+                                    // console.log(`upserted price for ${price.asset}`, price);
+                                    // console.log('poller')
+                                }
                             }
-                            await rClient.xAck(STREAM_NAME, GROUP_NAME, message.id);
+                        } else if(source === 'backend') {
+                            const { orderId, response_stream, tradeData } = data;
+                            const parsedTradeData = JSON.parse(tradeData);
+                            console.log(`Processing order ${orderId}`, parsedTradeData);
+                        } else {
+                            console.log(`bull shit source ${source}`)
                         }
+                        
+                        await rClient.xAck(STREAM_NAME, GROUP_NAME, message.id);
                     }
                 }
             }
