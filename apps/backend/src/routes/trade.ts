@@ -1,9 +1,9 @@
 import router from 'express';
 const app = router();
 import { v4 as uuidv4 } from "uuid";
-import { createSpotOrderSchema, createCfdOrderSchema } from '../types';
 import { createClient } from 'redis';
 import { RedisSuscriber } from '../utils/orderResponse';
+import { string } from 'zod';
 
 // Create a singleton subscriber instance
 const subscriber = new RedisSuscriber();
@@ -11,12 +11,13 @@ const subscriber = new RedisSuscriber();
 interface CreateOrder {
     asset: string;
     direction: 'LONG' | 'SHORT';
+    command: string,
     margin: number;
     leverage: number;
     slippage: number;
 }
 
-const STREAM_NAME: string = 'engine_input';
+const STREAM_NAME: string = 'backend-to-engine';
 const SOURCE: string = 'backend';
 
 
@@ -42,15 +43,11 @@ app.post('/create', async (req, res) => {
         await rClient.connect();
 
         const messageID = await rClient.xAdd(STREAM_NAME, '*', {
-            source: SOURCE,
-            data: JSON.stringify({
-                email: email,
-                orderId: orderId,
-                response_stream: response_stream,
-                tradeData: JSON.stringify(tradeData),
-            }),
+            orderId: orderId,
+            tradeData: JSON.stringify(tradeData),  // Contains everything
             timestamp: Date.now().toString()
         })
+
         console.log(`order send to engine ${messageID}`);
 
         console.log(`waiting for response from engine ${orderId}`);

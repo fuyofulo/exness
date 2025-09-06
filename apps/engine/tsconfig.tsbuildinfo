@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/price.ts"],"version":"5.9.2"}
+{"root":["./src/index.ts","./src/listener/orders.ts","./src/listener/price.ts","./src/memory/balance.ts","./src/memory/trades.ts"],"version":"5.9.2"}
