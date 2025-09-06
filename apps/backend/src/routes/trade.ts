@@ -26,27 +26,20 @@ app.post('/create', async (req, res) => {
     console.log('create order endpoint has been hit');
 
     try {
-        // const email = req.body.email;
-        // if(!email) {
-        //     res.status(404).json({
-        //         message: 'email not found'
-        //     })
-        // }
-
         const email = "hello123@gmail.com";
-
         const tradeData: CreateOrder = req.body;
         const orderId = uuidv4();
-        const response_stream = `response_trade_id_${orderId}`;
 
         const rClient = createClient();
         await rClient.connect();
 
         const messageID = await rClient.xAdd(STREAM_NAME, '*', {
             orderId: orderId,
-            tradeData: JSON.stringify(tradeData),  // Contains everything
+            command: tradeData.command,  // Add command field
+            email: email,  // Add userId field
+            tradeData: JSON.stringify(tradeData),
             timestamp: Date.now().toString()
-        })
+        });
 
         console.log(`order send to engine ${messageID}`);
 
@@ -56,14 +49,23 @@ app.post('/create', async (req, res) => {
 
         const endTime = Date.now();
         const latency = endTime - startTime;
-        res.json({
-            'job done for new order': messageID,
-            latency: latency
-        })
-    } catch {
 
+        // Send the engine's response back to the user
+        res.json({
+            success: true,
+            orderId: orderId,
+            engineResponse: responseFromEngine,
+            latency: latency
+        });
+
+    } catch (error) {
+        console.error('Error creating order:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+        });
     }
-})
+});
 
 app.post('/close', async (req, res) => {
 

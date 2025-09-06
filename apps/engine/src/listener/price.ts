@@ -1,22 +1,11 @@
 import { RedisClientType } from "redis";
+import { setPrice } from '../memory/price';
 
 const STREAM_NAME: string = 'engine_input';
-const GROUP_NAME: string = 'engine_group';
-const CONSUMER_NAME: string = 'engine_1';
-
-const ENGINE_RESPONSE = 'engine_response';
-
-// Interface for the latest price
-export type LatestPrice = {
-    asset: string;
-    price: number;
-    decimal: number;
-}
-
-const priceCache: Map<string, LatestPrice> = new Map();
+const GROUP_NAME: string = 'engine_price_group';
+const CONSUMER_NAME: string = 'engine_price_1';
 
 export async function listenToPrice(rClient: RedisClientType) {
-    // Create the consumer group
     try {
         await rClient.xGroupCreate(STREAM_NAME, GROUP_NAME, '0', { MKSTREAM: true });
     } catch (_) {
@@ -25,36 +14,38 @@ export async function listenToPrice(rClient: RedisClientType) {
 
     console.log('engine is listening for price updates');
 
-    // Process price updates from stream
     while (true) {
         try {
-            const messages = await rClient.xReadGroup ( GROUP_NAME, CONSUMER_NAME, 
-                {
-                    key: STREAM_NAME,
-                    id: '>'
-                }, 
-                {
-                    COUNT: 10,
-                    BLOCK: 5000
-                }
-            )            
-            
-            // Check if messages is not null before iterating
+            const messages = await rClient.xReadGroup(
+                GROUP_NAME, 
+                CONSUMER_NAME, 
+                { key: STREAM_NAME, id: '>' }, 
+                { COUNT: 10, BLOCK: 5000 }
+            );
+
             if (messages) {
                 for (const stream of messages as any) {
                     for (const message of stream.messages) {
                         const data = JSON.parse(message.message.data);
-                    
-                        if(Array.isArray(data)) {
+                        
+                        if (Array.isArray(data)) {
+                            // Update cache
                             for (const price of data) {
-                                priceCache.set(price.asset, price);
-                                await rClient.setEx(
-                                    `price:${price.asset}`, 15, JSON.stringify(price)
-                                );
-                                // console.log(`upserted price for ${price.asset}`, price);
-                                await rClient.xAck(STREAM_NAME, GROUP_NAME, message.id);
+                                setPrice(price.asset, {
+                                    asset: price.asset,
+                                    price: BigInt(price.price),
+                                    decimal: price.decimal
+                                });
                             }
-                        }  
+                            
+                            // Batch Redis operations
+                            const pipeline = rClient.multi();
+                            for (const price of data) {
+                                pipeline.setEx(`price:${price.asset}`, 15, JSON.stringify(price));
+                            }
+                            pipeline.xAck(STREAM_NAME, GROUP_NAME, message.id);
+                            await pipeline.exec();
+                        }
                     }
                 }
             }

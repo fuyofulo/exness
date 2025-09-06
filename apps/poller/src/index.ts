@@ -14,7 +14,7 @@ const ASSET_DECIMALS: Record<string, number> = {
 
 interface priceUpdate {
     asset: string,
-    price: number,
+    price: bigint,
     decimal: number
 }
 
@@ -43,9 +43,15 @@ ws.on('open', async () => {
     setInterval(async () => {
         const priceUpdates: priceUpdate[] = Array.from(latestPrices.values());
         if (priceUpdates.length > 0) {
+
+            const serializedPriceUpdates = priceUpdates.map(update => ({
+                ...update,
+                price: update.price.toString()
+            }));
+            
             await rClient.xAdd(STREAM_NAME, '*', {
                 source: SOURCE,
-                data: JSON.stringify(Array.from(latestPrices.values())),
+                data: JSON.stringify(serializedPriceUpdates),
                 timestamp: Date.now().toString()
             });
         }
@@ -65,7 +71,7 @@ ws.on('message', (data) => {
 
         // Calculate the scaling factor to normalize to target decimals
         const scalingFactor = 10 ** targetDecimals;
-        const scaledPrice = Math.round(price * scalingFactor);
+        const scaledPrice = BigInt(Math.round(price * scalingFactor));
 
         // Update the latest price for this asset
         latestPrices.set(symbol, {

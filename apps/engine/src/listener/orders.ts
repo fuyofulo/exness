@@ -1,4 +1,5 @@
 import { RedisClientType } from "redis";
+import { processCommand } from "../processor/processor";
 
 const STREAM_NAME: string = 'backend-to-engine';
 const GROUP_NAME: string = 'engine_orders_group';
@@ -25,19 +26,26 @@ export async function listenToOrders(rClient: RedisClientType) {
                 for (const message of stream.messages) {
                     try {
                         const orderId = message.message.orderId;
-                        const tradeData = JSON.parse(message.message.tradeData);
+                        const email = message.message.email;
+                        const command = message.message.command;
+                        const data = JSON.parse(message.message.tradeData);
 
-                        console.log(`procesing order ${orderId}`, tradeData);
+                        console.log(`procesing order ${orderId}`, data);
 
-                        // send order for processing
+                        const result = await processCommand({
+                            command,
+                            email,
+                            data
+                        })
 
                         await rClient.xAck(STREAM_NAME, GROUP_NAME, message.id);
                         console.log(`Acknowledged message ${message.id}`);
 
                         const responseData = {
                             orderId: orderId,
-                            status: 'processed',
-                            executionPrice: '100',
+                            status: result.status,
+                            data: result.data ? JSON.stringify(result.data) : null,
+                            message: result.message,
                             timestamp: Date.now().toString()
                         };
 
