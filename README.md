@@ -537,40 +537,171 @@ docker-compose down -v
 
 ## 📋 API Documentation
 
-### Authentication
+### 🔐 Authentication Endpoints
+
+#### **User Signup**
 ```bash
-POST /api/v1/auth/signup
-POST /api/v1/auth/signin
-GET /api/v1/auth/me
+POST /api/v1/user/signup
 ```
 
-### Trading Operations
+**Request Body:**
+```json
+{
+  "email": "user123@gmail.com"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "successfully sent email"
+}
+```
+
+**Description:** Sends a verification email with a link. Click the link or use it in a GET request to complete signup.
+
+#### **Complete Signup (via Email Link)**
+```bash
+GET /api/v1/user/signin/post?token=<jwt-token-from-email>
+```
+
+**Response:** Redirects to `http://localhost:3000` with auth cookie set.
+
+**Description:** Validates the email token, creates user account in engine, stores user in database, and sets authentication cookie.
+
+#### **Get User Info**
+```bash
+GET /api/v1/user/me
+```
+**Headers:** `Cookie: authToken=<jwt-token>`
+
+**Response:**
+```json
+{
+  "user": {
+    "id": 1,
+    "email": "user123@gmail.com"
+  }
+}
+```
+
+### 📊 Public Endpoints
+
+#### **Get Asset Price**
+```bash
+GET /api/v1/price?asset=SOL_USDC
+```
+
+**Response:**
+```json
+{
+  "asset": "SOL_USDC",
+  "price": "236140000",
+  "decimal": 6
+}
+```
+
+**Supported Assets:** `SOL_USDC`, `ETH_USDC`, `BTC_USDC`
+
+#### **Get Supported Assets**
+```bash
+GET /api/v1/supportedAssets
+```
+
+**Response:**
+```json
+[
+  "SOL_USDC",
+  "ETH_USDC",
+  "BTC_USDC"
+]
+```
+
+### 🎯 Trading Endpoints (Require Authentication)
+
+**All trading endpoints require:** `Cookie: authToken=<jwt-token>`
+
 ```bash
 POST /api/v1/engine
 ```
 
-#### Create Account
+#### **Create Account**
 ```json
 {
   "command": "CREATE_ACCOUNT"
 }
 ```
 
-#### Get Balance
+**Response:**
 ```json
 {
-  "command": "GET_BALANCE"
+  "success": true,
+  "orderId": "uuid-v4",
+  "engineResponse": {
+    "status": "success",
+    "data": {
+      "email": "user123@gmail.com",
+      "initialUsdBalance": 5000,
+      "assets": ["USD"]
+    },
+    "message": "account created successfully"
+  },
+  "latency": 5
 }
 ```
 
-#### Get USD Balance
+#### **Get USD Balance**
 ```json
 {
   "command": "GET_USD_BALANCE"
 }
 ```
 
-#### Create Trade
+**Response:**
+```json
+{
+  "success": true,
+  "orderId": "uuid-v4",
+  "engineResponse": {
+    "status": "success",
+    "data": {
+      "email": "user123@gmail.com",
+      "usdBalance": 5445.0095
+    },
+    "message": "USD balance retrieved successfully"
+  },
+  "latency": 5
+}
+```
+
+#### **Get All Balances**
+```json
+{
+  "command": "GET_BALANCE"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "orderId": "uuid-v4",
+  "engineResponse": {
+    "status": "success",
+    "data": {
+      "email": "user123@gmail.com",
+      "balances": {
+        "USD": 5445.0095,
+        "SOL_USDC": 0.392535
+      }
+    },
+    "message": "Balance retrieved successfully"
+  },
+  "latency": 5
+}
+```
+
+#### **Create Trade**
 ```json
 {
   "command": "CREATE_TRADE",
@@ -583,15 +714,115 @@ POST /api/v1/engine
 }
 ```
 
-#### Close Trade
+**Parameters:**
+- `asset`: `"SOL_USDC" | "ETH_USDC" | "BTC_USDC"` (required)
+- `direction`: `"LONG" | "SHORT"` (required)
+- `margin`: `number > 0` (required - USD amount)
+- `leverage`: `integer 10-1000` (optional, default: 10 = 1x)
+- `stopLossPrice`: `number > 0` (optional - exact price level)
+- `takeProfitPrice`: `number > 0` (optional - exact price level)
+
+**Response Examples:**
+
+**Basic Trade (1x leverage, no SL/TP):**
 ```json
 {
-  "command": "CLOSE_TRADE",
-  "tradeId": "trade_123456789"
+  "success": true,
+  "orderId": "uuid-v4",
+  "engineResponse": {
+    "status": "success",
+    "data": {
+      "email": "user123@gmail.com",
+      "tradeId": "trade_1758117427013",
+      "entryPrice": 235.95,
+      "margin": 5000,
+      "leverage": 1
+    },
+    "message": "Trade created successfully"
+  },
+  "latency": 5
 }
 ```
 
-### Response Format
+**CFD Trade with Leverage:**
+```json
+{
+  "success": true,
+  "orderId": "uuid-v4",
+  "engineResponse": {
+    "status": "success",
+    "data": {
+      "email": "user123@gmail.com",
+      "tradeId": "trade_1758117427013",
+      "entryPrice": 235.95,
+      "liquidationPrice": 238.3095,
+      "margin": 5000,
+      "leverage": 100
+    },
+    "message": "Trade created successfully"
+  },
+  "latency": 5
+}
+```
+
+**Trade with Stop Loss & Take Profit:**
+```json
+{
+  "success": true,
+  "orderId": "uuid-v4",
+  "engineResponse": {
+    "status": "success",
+    "data": {
+      "email": "user123@gmail.com",
+      "tradeId": "trade_1758099196941",
+      "entryPrice": 236.17,
+      "stopLossPrice": 236.11,
+      "takeProfitPrice": 236.17,
+      "margin": 500,
+      "leverage": 1
+    },
+    "message": "Trade created successfully"
+  },
+  "latency": 8
+}
+```
+
+#### **Close Trade**
+```json
+{
+  "command": "CLOSE_TRADE",
+  "tradeId": "trade_1758117427013"
+}
+```
+
+**Parameters:**
+- `tradeId`: `string` (required - trade ID from CREATE_TRADE response)
+
+**Response:**
+```json
+{
+  "success": true,
+  "orderId": "uuid-v4",
+  "engineResponse": {
+    "status": "success",
+    "data": {
+      "email": "user123@gmail.com",
+      "tradeId": "trade_1758117427013",
+      "asset": "SOL_USDC",
+      "marginReturned": 5000,
+      "pnl": 445.0095,
+      "totalReturn": 5445.0095,
+      "closePrice": 235.74
+    },
+    "message": "Trade closed successfully"
+  },
+  "latency": 8
+}
+```
+
+### 📋 Response Format
+
+**Success Response:**
 ```json
 {
   "success": true,
@@ -604,6 +835,40 @@ POST /api/v1/engine
   "latency": 15
 }
 ```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": "Specific error message",
+  "orderId": "uuid-v4",
+  "engineResponse": {
+    "status": "error",
+    "data": null,
+    "message": "Error details"
+  },
+  "latency": 5
+}
+```
+
+### 🔑 Authentication
+
+**Cookie-based Authentication:**
+- All trading endpoints require `authToken` cookie
+- Cookie is set automatically after signup/signin
+- Token expires in 7 days
+
+**Headers Example:**
+```
+Cookie: authToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### ⚡ Rate Limiting & Performance
+
+- **Latency:** Typically 5-15ms for engine operations
+- **Real-time:** Price updates every 1 second
+- **Persistence:** All trades and orders logged to database
+- **Recovery:** Automatic recovery from snapshots (< 5 seconds)
 
 ## 🧪 Testing
 
