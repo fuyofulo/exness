@@ -27,8 +27,8 @@ model User {
 model Order {
   id      Int    @id @default(autoincrement())
   orderId String @unique // backend order ID
-  userId  Int
-  user    User   @relation(fields: [userId], references: [id])
+  userId  Int?
+  user    User?  @relation(fields: [userId], references: [id])
   email   String
   command String // 'CREATE_TRADE', 'CLOSE_TRADE', 'GET_BALANCE', etc.
 
