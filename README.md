@@ -703,9 +703,57 @@ POST /api/v1/engine
 - `asset`: `"SOL_USDC" | "ETH_USDC" | "BTC_USDC"` (required)
 - `direction`: `"LONG" | "SHORT"` (required)
 - `margin`: `number > 0` (required - USD amount)
-- `leverage`: `integer 10-1000` (optional, default: 10 = 1x)
+- `leverage`: `integer 10-1000` (optional, default: 10) **NOTE: Leverage is multiplied by 10, so 1x = 10, 5x = 50, 10x = 100**
 - `stopLossPrice`: `number > 0` (optional - exact price level)
 - `takeProfitPrice`: `number > 0` (optional - exact price level)
+
+**Payload Examples:**
+
+**Basic Spot Trade (1x leverage):**
+```json
+{
+  "command": "CREATE_TRADE",
+  "asset": "SOL_USDC",
+  "direction": "LONG",
+  "margin": 1000,
+  "leverage": 10
+}
+```
+
+**CFD Trade with 10x Leverage:**
+```json
+{
+  "command": "CREATE_TRADE",
+  "asset": "SOL_USDC",
+  "direction": "LONG",
+  "margin": 1000,
+  "leverage": 100
+}
+```
+
+**Trade with Stop Loss & Take Profit:**
+```json
+{
+  "command": "CREATE_TRADE",
+  "asset": "SOL_USDC",
+  "direction": "LONG",
+  "margin": 1000,
+  "leverage": 50,
+  "stopLossPrice": 230.50,
+  "takeProfitPrice": 250.75
+}
+```
+
+**High Leverage CFD Trade (50x):**
+```json
+{
+  "command": "CREATE_TRADE",
+  "asset": "ETH_USDC",
+  "direction": "SHORT",
+  "margin": 5000,
+  "leverage": 500
+}
+```
 
 **Response Examples:**
 
@@ -926,7 +974,7 @@ exchange/
 │   ├── redis/            # Redis utilities
 │   ├── config/           # Shared configuration
 │   └── typescript-config/# TypeScript configuration
-├── docker/               # Docker configurations
+├── docker-compose.yml    # Docker infrastructure setup
 ├── docs/                 # Documentation
 └── README.md            # This file
 ```
@@ -978,56 +1026,6 @@ docker-compose up -d
 npm run build
 npm run start
 ```
-
-### Infrastructure Management
-```bash
-# Start database and Redis only
-docker-compose up -d
-
-# Stop infrastructure
-docker-compose down
-
-# View logs
-docker-compose logs -f
-
-# Restart services
-docker-compose restart
-
-# Clean up (removes volumes)
-docker-compose down -v
-```
-
-### 🔧 Troubleshooting Docker Issues
-
-**If containers already exist:**
-```bash
-# Restart existing containers
-docker-compose restart
-
-# Or recreate containers (keeps data)
-docker-compose up -d --force-recreate
-
-# Or remove and recreate (loses data)
-docker-compose down
-docker-compose up -d
-```
-
-**Check container status:**
-```bash
-# List all containers (running and stopped)
-docker ps -a
-
-# List only running containers
-docker ps
-
-# Remove specific container if needed
-docker rm redis-exchange backend-exchange
-```
-
-**Common issues:**
-- **Port conflicts**: Check if ports 5432 or 6379 are already in use
-- **Container name conflicts**: Use `docker rm` to remove old containers
-- **Volume issues**: Use `docker-compose down -v` to clean volumes
 
 ## 📊 Monitoring & Observability
 
