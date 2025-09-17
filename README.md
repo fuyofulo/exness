@@ -1307,81 +1307,81 @@ npm run test
 
 ```
 exchange/
-├── package.json                     # Monorepo root with turbo scripts
-├── turbo.json                      # Turborepo build orchestration
-├── pnpm-workspace.yaml             # PNPM workspace configuration
-├── pnpm-lock.yaml                  # PNPM lock file
-├── docker-compose.yml              # PostgreSQL + Redis infrastructure
-├── init.sql                        # Optional database initialization
-├── README.md                       # This file
+├── package.json                          # Monorepo root with turbo scripts
+├── turbo.json                            # Turborepo build orchestration
+├── pnpm-workspace.yaml                   # PNPM workspace configuration
+├── pnpm-lock.yaml                        # PNPM lock file
+├── docker-compose.yml                    # PostgreSQL + Redis infrastructure
+├── init.sql                              # Optional database initialization
+├── README.md                             # This file
 ├── apps/
-│   ├── backend/                    # Express API server
-│   │   ├── package.json            # Backend dependencies & scripts
-│   │   ├── tsconfig.json           # TypeScript configuration
-│   │   ├── tsconfig.tsbuildinfo    # TypeScript build cache
-│   │   ├── prisma/                 # Database schema & migrations
-│   │   │   ├── schema.prisma       # Database models & relations
-│   │   │   └── generated/          # Prisma client (auto-generated)
+│   ├── backend/                          # Express API server
+│   │   ├── package.json                  # Backend dependencies & scripts
+│   │   ├── tsconfig.json                 # TypeScript configuration
+│   │   ├── tsconfig.tsbuildinfo          # TypeScript build cache
+│   │   ├── prisma/                       # Database schema & migrations
+│   │   │   ├── schema.prisma             # Database models & relations
+│   │   │   └── generated/                # Prisma client (auto-generated)
 │   │   └── src/
-│   │       ├── index.ts            # Express server setup & routes
-│   │       ├── middleware.ts       # JWT authentication middleware
-│   │       ├── types.ts            # TypeScript interfaces & Zod schemas
-│   │       ├── eventlistener.ts    # Redis event listener for liquidations
+│   │       ├── index.ts                  # Express server setup & routes
+│   │       ├── middleware.ts             # JWT authentication middleware
+│   │       ├── types.ts                  # TypeScript interfaces & Zod schemas
+│   │       ├── eventlistener.ts          # Redis event listener for liquidations
 │   │       ├── routes/
-│   │       │   ├── user.ts         # User signup/signin endpoints
-│   │       │   └── engine.ts       # Trading engine API endpoints
+│   │       │   ├── user.ts               # User signup/signin endpoints
+│   │       │   └── engine.ts             # Trading engine API endpoints
 │   │       └── utils/
-│   │           ├── sendEmail.ts    # Email utility for verification
-│   │           └── orderResponse.ts # Redis response handler
-│   ├── engine/                     # High-performance trading engine
-│   │   ├── package.json            # Engine dependencies & scripts
-│   │   ├── tsconfig.json           # TypeScript configuration
-│   │   ├── tsconfig.tsbuildinfo    # TypeScript build cache
-│   │   ├── snapshots/              # File-based recovery snapshots
+│   │           ├── sendEmail.ts          # Email utility for verification
+│   │           └── orderResponse.ts      # Redis response handler
+│   ├── engine/                           # High-performance trading engine
+│   │   ├── package.json                  # Engine dependencies & scripts
+│   │   ├── tsconfig.json                 # TypeScript configuration
+│   │   ├── tsconfig.tsbuildinfo          # TypeScript build cache
+│   │   ├── snapshots/                    # File-based recovery snapshots
 │   │   └── src/
-│   │       ├── index.ts            # Engine entry point & lifecycle
+│   │       ├── index.ts                  # Engine entry point & lifecycle
 │   │       ├── listener/
-│   │       │   ├── price.ts        # Redis price stream consumer
-│   │       │   └── orders.ts       # Redis command stream consumer
+│   │       │   ├── price.ts              # Redis price stream consumer
+│   │       │   └── orders.ts             # Redis command stream consumer
 │   │       ├── memory/
-│   │       │   ├── balance.ts      # In-memory user balance management
-│   │       │   ├── price.ts        # In-memory price cache
-│   │       │   └── trades.ts       # In-memory trade & trigger management
+│   │       │   ├── balance.ts            # In-memory user balance management
+│   │       │   ├── price.ts              # In-memory price cache
+│   │       │   └── trades.ts             # In-memory trade & trigger management
 │   │       ├── processor/
-│   │       │   └── processor.ts    # Command processing logic
+│   │       │   └── processor.ts          # Command processing logic
 │   │       └── snapshot/
 │   │           ├── SnapshotManager.ts    # Periodic snapshot creation
 │   │           ├── RecoveryManager.ts    # Startup recovery from snapshots
 │   │           ├── types.ts              # Snapshot data structures
 │   │           └── utils.ts              # Serialization utilities
-│   ├── frontend/                  # Next.js web application
-│   │   ├── package.json           # Frontend dependencies & scripts
-│   │   ├── next.config.ts         # Next.js configuration
-│   │   ├── next-env.d.ts          # Next.js environment types
-│   │   ├── postcss.config.mjs     # PostCSS configuration
-│   │   ├── tsconfig.json          # TypeScript configuration
-│   │   ├── README.md              # Frontend-specific documentation
-│   │   ├── app/                   # Next.js app directory (pages & API routes)
-│   │   └── public/                # Static assets (images, fonts, etc.)
-│   └── poller/                    # Real-time price poller
-│       ├── package.json           # Poller dependencies & scripts
-│       ├── tsconfig.json          # TypeScript configuration
-│       ├── tsconfig.tsbuildinfo   # TypeScript build cache
+│   ├── frontend/                         # Next.js web application
+│   │   ├── package.json                  # Frontend dependencies & scripts
+│   │   ├── next.config.ts                # Next.js configuration
+│   │   ├── next-env.d.ts                 # Next.js environment types
+│   │   ├── postcss.config.mjs            # PostCSS configuration
+│   │   ├── tsconfig.json                 # TypeScript configuration
+│   │   ├── README.md                     # Frontend-specific documentation
+│   │   ├── app/                          # Next.js app directory (pages & API routes)
+│   │   └── public/                       # Static assets (images, fonts, etc.)
+│   └── poller/                           # Real-time price poller
+│       ├── package.json                  # Poller dependencies & scripts
+│       ├── tsconfig.json                 # TypeScript configuration
+│       ├── tsconfig.tsbuildinfo          # TypeScript build cache
 │       └── src/
-│           └── index.ts           # WebSocket price streaming
+│           └── index.ts                  # WebSocket price streaming
 ├── packages/
-│   ├── config/                    # Centralized configuration
-│   │   ├── package.json           # Config package definition
-│   │   ├── tsconfig.json          # TypeScript configuration
-│   │   ├── tsconfig.tsbuildinfo   # TypeScript build cache
+│   ├── config/                           # Centralized configuration
+│   │   ├── package.json                  # Config package definition
+│   │   ├── tsconfig.json                 # TypeScript configuration
+│   │   ├── tsconfig.tsbuildinfo          # TypeScript build cache
 │   │   └── src/
-│   │       └── index.ts           # Environment variables export
-│   └── typescript-config/         # Shared TypeScript presets
-│       ├── package.json           # TypeScript config package
-│       ├── base.json              # Base TypeScript configuration
-│       ├── nextjs.json            # Next.js specific config
-│       └── react-library.json     # React library configuration
-└── node_modules/                  # Root dependencies (turbo, etc.)
+│   │       └── index.ts                  # Environment variables export
+│   └── typescript-config/                # Shared TypeScript presets
+│       ├── package.json                  # TypeScript config package
+│       ├── base.json                     # Base TypeScript configuration
+│       ├── nextjs.json                   # Next.js specific config
+│       └── react-library.json            # React library configuration
+└── node_modules/                         # Root dependencies (turbo, etc.)
 ```
 
 ## 🔧 Configuration
