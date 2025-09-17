@@ -43,7 +43,7 @@ This platform provides a complete trading ecosystem with:
 4. **Database** → Persistent storage of trades and users
 5. **Frontend** → User interface for trading
 
-## 🔄 **Data Architecture & Streams**
+## 🔄 **Engine Architecture & Memory Management**
 
 ### Redis Streams & Consumer Groups
 
@@ -417,14 +417,14 @@ Consumer: 'liquidation_consumer'
 - **Graceful Shutdown**: Clean process termination
 - **Error Recovery**: Automatic retry mechanisms
 
-## 🚀 Quick Start
+## ⚡ **Quick Start**
 
 ### Prerequisites
 - Node.js 18+
 - Docker & Docker Compose
 - npm or yarn
 
-### Installation
+### Installation & Setup
 
 1. **Clone the repository**
    ```bash
@@ -903,6 +903,362 @@ Cookie: authToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - **Persistence:** All trades and orders logged to database
 - **Recovery:** Automatic recovery from snapshots (< 5 seconds)
 
+### Redis Streams & Consumer Groups
+
+This platform uses **Redis Streams** for high-throughput, reliable message passing between components. Each stream has dedicated consumer groups for load balancing and fault tolerance.
+
+#### 📊 **Stream 1: Price Updates (`engine_input`)**
+**Purpose:** Real-time price streaming from Poller to Engine
+```typescript
+Stream: 'engine_input'
+Producer: Price Poller (WebSocket → Redis)
+Consumer: Engine Price Listener
+Consumer Group: 'engine_price_group'
+Consumer: 'engine_price_1'
+```
+
+**Data Format:**
+```json
+{
+  "source": "poller",
+  "data": "base64-encoded-json",
+  "format": "base64_v1",
+  "timestamp": "1758117494823"
+}
+```
+
+**Decoded Data:**
+```json
+[{
+  "asset": "SOL_USDC",
+  "price": "20347000000",
+  "decimal": 6
+}]
+```
+
+#### 📊 **Stream 2: Commands (`backend-to-engine`)**
+**Purpose:** User commands from Backend to Engine
+```typescript
+Stream: 'backend-to-engine'
+Producer: Backend API
+Consumer: Engine Orders Listener
+Consumer Group: 'engine_orders_group'
+Consumer: 'engine_2'
+```
+
+**Data Format:**
+```json
+{
+  "orderId": "uuid-v4",
+  "command": "CREATE_TRADE",
+  "email": "user@example.com",
+  "tradeData": "{\"asset\":\"SOL_USDC\",\"direction\":\"LONG\",\"margin\":1000,\"leverage\":50}",
+  "timestamp": "1758117494823"
+}
+```
+
+#### 📊 **Stream 3: Responses (`engine_response`)**
+**Purpose:** Engine responses back to Backend
+```typescript
+Stream: 'engine_response'
+Producer: Engine Orders Listener
+Consumer: Backend Response Handler
+Consumer Group: 'backend_group'
+Consumer: 'backend_consumer'
+```
+
+**Data Format:**
+```json
+{
+  "orderId": "uuid-v4",
+  "status": "success",
+  "data": "{\"email\":\"user@example.com\",\"tradeId\":\"trade_123\",\"entryPrice\":203.47}",
+  "message": "Trade created successfully",
+  "timestamp": "1758117494823"
+}
+```
+
+#### 📊 **Stream 4: Events (`engine_events`)**
+**Purpose:** Asynchronous events (liquidations, closures) from Engine to Backend
+```typescript
+Stream: 'engine_events'
+Producer: Engine Price Listener (on trigger execution)
+Consumer: Backend EventListener
+Consumer Group: 'liquidation_group'
+Consumer: 'liquidation_consumer'
+```
+
+**Data Format:**
+```json
+{
+  "eventType": "TRADE_LIQUIDATED",
+  "tradeId": "trade_123",
+  "email": "user@example.com",
+  "asset": "SOL_USDC",
+  "pnl": "-5000.00",
+  "marginReturned": "1000.00",
+  "closePrice": "201.23",
+  "timestamp": "1758117494823"
+}
+```
+
+### 💾 **Database Architecture**
+
+#### **PostgreSQL Database (Persistent Storage)**
+**Purpose:** Long-term data persistence and audit trail
+
+**Tables:**
+
+1. **`users`** - User accounts
+   ```sql
+   CREATE TABLE users (
+     id SERIAL PRIMARY KEY,
+     email VARCHAR UNIQUE NOT NULL
+   );
+   ```
+
+2. **`orders`** - All user commands and their results
+   ```sql
+   CREATE TABLE orders (
+     id SERIAL PRIMARY KEY,
+     orderId VARCHAR UNIQUE NOT NULL,
+     userId INTEGER REFERENCES users(id),
+     email VARCHAR NOT NULL,
+     command VARCHAR NOT NULL,
+     asset VARCHAR,
+     direction VARCHAR,
+     amount BIGINT,  -- Scaled BigInt (e.g., 10000000 = 1000.00 USD)
+     leverage BIGINT,
+     tradeId VARCHAR,
+     status VARCHAR NOT NULL,  -- 'PENDING', 'SUCCESS', 'ERROR'
+     latencyMs INTEGER
+   );
+   ```
+
+3. **`trades`** - CFD trading positions
+   ```sql
+   CREATE TABLE trades (
+     id SERIAL PRIMARY KEY,
+     tradeId VARCHAR UNIQUE NOT NULL,
+     userId INTEGER NOT NULL REFERENCES users(id),
+     email VARCHAR NOT NULL,
+     asset VARCHAR NOT NULL,
+     direction VARCHAR NOT NULL,
+     margin BIGINT NOT NULL,     -- Scaled USD (10000 = 1.00 USD)
+     leverage BIGINT NOT NULL,   -- Integer: 10-1000 (1.0x to 100.0x)
+     entryPrice BIGINT NOT NULL, -- Scaled price
+     entryPriceDecimals INTEGER NOT NULL,
+     liquidationPrice BIGINT,
+     liquidationPriceDecimals INTEGER,
+     stopLossPrice BIGINT,
+     takeProfitPrice BIGINT,
+     triggerDecimals INTEGER,
+     exitPrice BIGINT,
+     exitPriceDecimals INTEGER,
+     pnl BIGINT,
+     status VARCHAR NOT NULL,    -- 'OPEN', 'CLOSED', 'LIQUIDATED', 'STOP_LOSS', 'TAKE_PROFIT'
+     createdAt TIMESTAMP DEFAULT NOW(),
+     updatedAt TIMESTAMP DEFAULT NOW()
+   );
+   ```
+
+### 🚀 **In-Memory Trading Engine**
+
+#### **Core Data Structures**
+**Purpose:** High-performance trading data with sub-millisecond access
+
+**Maps:**
+
+1. **`userBalances`** - User financial positions
+   ```typescript
+   Map<string, UserBalance>  // email → balances
+
+   interface UserBalance {
+     email: string;
+     balances: Record<string, {
+       balance: bigint;    // e.g., 50000000 = 5000.00 USD
+       decimals: number;   // e.g., 4 (for 0.0001 precision)
+     }>;
+   }
+   ```
+
+2. **`openTrades`** - Active CFD positions
+   ```typescript
+   Map<string, Trade>  // tradeId → trade
+
+   interface Trade {
+     orderId: string;
+     email: string;
+     asset: string;
+     direction: 'LONG' | 'SHORT';
+     margin: bigint;
+     leverage: bigint;
+     entryPrice: bigint;
+     entryPriceDecimals: number;
+     liquidationPrice?: bigint;
+     stopLossPrice?: bigint;
+     takeProfitPrice?: bigint;
+     triggerDecimals?: number;
+     exitPrice?: bigint;
+     exitPriceDecimals?: number;
+     pnl: bigint;
+     status: 'OPEN' | 'CLOSED' | 'LIQUIDATED' | 'STOP_LOSS' | 'TAKE_PROFIT';
+     timestamp: number;
+   }
+   ```
+
+3. **`closedTrades`** - Historical CFD positions
+   ```typescript
+   Map<string, Trade>  // tradeId → trade (same as openTrades)
+   ```
+
+4. **`userTrades`** - User trade lookup
+   ```typescript
+   Map<string, string[]>  // email → [tradeId1, tradeId2, ...]
+   ```
+
+5. **`tradeTriggerBitmaps`** - O(1) trigger lookups
+   ```typescript
+   Map<string, {  // asset → trigger data
+     long: Map<number, Set<{
+       tradeId: string;
+       triggerType: 'liquidation' | 'stop_loss' | 'take_profit';
+       triggerPrice: bigint;
+     }>>;
+     short: Map<number, Set<{
+       tradeId: string;
+       triggerType: 'liquidation' | 'stop_loss' | 'take_profit';
+       triggerPrice: bigint;
+     }>>;
+   }>
+   ```
+
+6. **`priceCache`** - Latest asset prices
+   ```typescript
+   Map<string, LatestPrice>  // asset → price data
+
+   interface LatestPrice {
+     asset: string;
+     price: bigint;     // e.g., 20347000000 = 203.47000000
+     decimal: number;   // e.g., 6
+   }
+   ```
+
+#### **Liquidation & Trigger System**
+**Purpose:** O(1) lookups for automated trade closures
+
+The engine uses **bitmap indexing** for ultra-fast trigger detection:
+
+```typescript
+// For each asset, maintain trigger price buckets
+tradeTriggerBitmaps.set('SOL_USDC', {
+  long: new Map([
+    [20347000000, new Set([
+      { tradeId: 'trade_123', triggerType: 'liquidation', triggerPrice: 20347000000n },
+      { tradeId: 'trade_456', triggerType: 'stop_loss', triggerPrice: 20347000000n }
+    ])]
+  ]),
+  short: new Map([
+    [20123000000, new Set([
+      { tradeId: 'trade_789', triggerType: 'take_profit', triggerPrice: 20123000000n }
+    ])]
+  ])
+});
+```
+
+**Trigger Processing Flow:**
+1. Price update arrives from poller
+2. Engine checks bitmap for matching trigger prices
+3. Executes trades instantly (liquidation, stop loss, take profit)
+4. Updates balances and publishes events
+5. Moves trade from `openTrades` to `closedTrades`
+
+#### **File-Based Snapshots**
+**Purpose:** Crash recovery with < 5 second recovery time
+
+**Storage:**
+- **Location:** `/engine/snapshots/`
+- **Format:** Compressed JSON (`timestamp.json.gz`)
+- **Retention:** Last 10 snapshots
+- **Frequency:** Every 5 seconds
+- **Integrity:** SHA-256 checksums
+
+**Snapshot Contents:**
+```json
+{
+  "version": "1.0.0",
+  "timestamp": 1758117494823,
+  "checksum": "f19eca3b...",
+  "data": {
+    "userBalances": [...],
+    "openTrades": [...],
+    "closedTrades": [...],
+    "tradeTriggerBitmaps": {...},
+    "metadata": {...}
+  }
+}
+```
+
+**Recovery Process:**
+1. Load latest snapshot from `/snapshots/latest.json.gz`
+2. Validate checksum and version
+3. Deserialize BigInt values from strings
+4. Rebuild in-memory data structures
+5. Resume normal operation
+
+### 🔄 **Complete Engine Data Flow**
+
+```
+┌─────────────┐     ┌─────────────┐     ┌──────────────┐
+│   Poller    │     │    Redis    │     │   Engine     │
+│             │     │   Streams   │     │              │
+│ WebSocket   │────►│engine_input │────►│Price Listener│
+│ BTC/ETH/SOL │     │             │     │              │
+└─────────────┘     └─────────────┘     └───────┬──────┘
+                                                │
+┌─────────────┐     ┌─────────────┐             │
+│  Backend    │     │    Redis    │             │
+│             │     │   Streams   │             │
+│   API       ┼────►│ backend-to- │             │
+│ Commands    │     │  engine     │             │
+└─────────────┘     └─────────────┘             │
+                              │                 │
+                              ▼                 ▼
+                       ┌─────────────┐    ┌─────────────┐
+                       │ Engine Resp │    │Price Cache  │
+                       │  Handler    │    │             │
+                       │             │    │In-Memory    │
+                       │engine_resp  │◄───┤Maps         │
+                       │  stream     │    │             │
+                       └─────────────┘    └──────┬──────┘
+                              ▲                  │
+                              │                  ▼
+                       ┌──────────────┐    ┌──────────────┐
+                       │Event Listener│    │Trade Triggers│
+                       │              │    │              │
+                       │engine_events │◄───┤Liquidation/  │
+                       │  stream      │    │SL/TP Checks  │
+                       └──────┬───────┘    └──────────────┘
+                              │
+                              ▼
+                       ┌─────────────┐
+                       │PostgreSQL   │
+                       │Database     │
+                       │             │
+                       │Users/Orders/│
+                       │Trades       │
+                       └─────────────┘
+
+┌──────────────┐
+│File System   │
+│Snapshots     │
+│              │
+│latest.json.gz│
+│1758117*.json │
+│checksums     │
+└──────────────┘
+```
+
 ## 🧪 Testing
 
 ### Manual Testing
@@ -970,13 +1326,78 @@ exchange/
 │   │   └── snapshots/         # Snapshot storage
 │   ├── frontend/          # Next.js web app
 │   └── poller/            # Price data poller
+## 📁 **Project Structure**
+
+```
+exchange/
+├── package.json                     # Monorepo root with turbo scripts
+├── turbo.json                      # Turborepo build orchestration
+├── pnpm-workspace.yaml             # PNPM workspace configuration
+├── pnpm-lock.yaml                  # PNPM lock file
+├── docker-compose.yml              # PostgreSQL + Redis infrastructure
+├── init.sql                        # Optional database initialization
+├── README.md                       # This file
+├── apps/
+│   ├── backend/                    # Express API server
+│   │   ├── package.json            # Backend dependencies
+│   │   ├── tsconfig.json           # TypeScript configuration
+│   │   ├── prisma/                 # Database schema & migrations
+│   │   │   ├── schema.prisma       # Database models & relations
+│   │   │   └── generated/          # Prisma client (auto-generated)
+│   │   └── src/
+│   │       ├── index.ts            # Express server setup & routes
+│   │       ├── middleware.ts       # JWT authentication middleware
+│   │       ├── types.ts            # TypeScript interfaces & Zod schemas
+│   │       ├── eventlistener.ts    # Redis event listener for liquidations
+│   │       ├── routes/
+│   │       │   ├── user.ts         # User signup/signin endpoints
+│   │       │   └── engine.ts       # Trading engine API endpoints
+│   │       └── utils/
+│   │           ├── sendEmail.ts    # Email utility for verification
+│   │           └── orderResponse.ts # Redis response handler
+│   ├── engine/                     # High-performance trading engine
+│   │   ├── package.json            # Engine dependencies
+│   │   ├── tsconfig.json           # TypeScript configuration
+│   │   ├── snapshots/              # File-based recovery snapshots
+│   │   └── src/
+│   │       ├── index.ts            # Engine entry point & lifecycle
+│   │       ├── listener/
+│   │       │   ├── price.ts        # Redis price stream consumer
+│   │       │   └── orders.ts       # Redis command stream consumer
+│   │       ├── memory/
+│   │       │   ├── balance.ts      # In-memory user balance management
+│   │       │   ├── price.ts        # In-memory price cache
+│   │       │   └── trades.ts       # In-memory trade & trigger management
+│   │       ├── processor/
+│   │       │   └── processor.ts    # Command processing logic
+│   │       └── snapshot/
+│   │           ├── SnapshotManager.ts    # Periodic snapshot creation
+│   │           ├── RecoveryManager.ts    # Startup recovery from snapshots
+│   │           ├── types.ts              # Snapshot data structures
+│   │           └── utils.ts              # Serialization utilities
+│   ├── frontend/                  # Next.js web application
+│   │   ├── package.json           # Frontend dependencies
+│   │   ├── next.config.ts         # Next.js configuration
+│   │   ├── tsconfig.json          # TypeScript configuration
+│   │   ├── app/                   # Next.js app directory
+│   │   └── public/                # Static assets
+│   └── poller/                    # Real-time price poller
+│       ├── package.json           # Poller dependencies
+│       ├── tsconfig.json          # TypeScript configuration
+│       └── src/
+│           └── index.ts           # WebSocket price streaming
 ├── packages/
-│   ├── redis/            # Redis utilities
-│   ├── config/           # Shared configuration
-│   └── typescript-config/# TypeScript configuration
-├── docker-compose.yml    # Docker infrastructure setup
-├── docs/                 # Documentation
-└── README.md            # This file
+│   ├── config/                    # Centralized configuration
+│   │   ├── package.json           # Config package definition
+│   │   ├── tsconfig.json          # TypeScript configuration
+│   │   └── src/
+│   │       └── index.ts           # Environment variables export
+│   └── typescript-config/         # Shared TypeScript presets
+│       ├── package.json           # TypeScript config package
+│       ├── base.json              # Base TypeScript configuration
+│       ├── nextjs.json            # Next.js specific config
+│       └── react-library.json     # React library configuration
+└── node_modules/                  # Root dependencies (turbo, etc.)
 ```
 
 ## 🔧 Configuration
