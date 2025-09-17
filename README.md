@@ -20,18 +20,18 @@ This platform provides a complete trading ecosystem with:
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │     Frontend    │    │     Backend     │    │     Engine      │
 │                 │    │                 │    │                 │
-│  - Next.js      │◄──►│  - Express      │◄──►│  - Trading Core  │
+│  - Next.js      │◄──►│  - Express      │◄──►│  - Trading Core │
 │  - React        │    │  - PostgreSQL   │    │  - In-Memory DB │
-│  - TypeScript   │    │  - JWT Auth     │    │  - Redis Streams │
+│  - TypeScript   │    │  - JWT Auth     │    │  - Redis Streams│
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                               │                        │
                               ▼                        ▼
                        ┌─────────────────┐    ┌─────────────────┐
                        │     Database    │    │   Price Poller  │
                        │                 │    │                 │
-                       │  - User Data    │◄──►│  - WebSocket     │
-                       │  - Trade History│    │  - Real-time     │
-                       │  - Orders       │    │  - BTC/ETH/SOL   │
+                       │  - User Data    │◄──►│  - WebSocket    │
+                       │  - Trade History│    │  - Real-time    │
+                       │  - Orders       │    │  - BTC/ETH/SOL  │
                        └─────────────────┘    └─────────────────┘
 ```
 
