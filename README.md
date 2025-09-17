@@ -1303,29 +1303,6 @@ tradeTriggerBitmaps.set('SOL_USDC', {
 npm run test
 ```
 
-## 📁 Project Structure
-
-```
-exchange/
-├── apps/
-│   ├── backend/           # Express API server
-│   │   ├── src/
-│   │   │   ├── middleware/    # Auth middleware
-│   │   │   ├── routes/        # API routes
-│   │   │   ├── services/      # Business logic
-│   │   │   ├── utils/         # Utilities
-│   │   │   └── index.ts       # Server entry point
-│   │   └── prisma/            # Database schema & migrations
-│   ├── engine/            # Trading engine
-│   │   ├── src/
-│   │   │   ├── memory/        # In-memory data structures
-│   │   │   ├── listener/      # Redis stream listeners
-│   │   │   ├── processor/     # Command processor
-│   │   │   ├── snapshot/      # Snapshot system
-│   │   │   └── index.ts       # Engine entry point
-│   │   └── snapshots/         # Snapshot storage
-│   ├── frontend/          # Next.js web app
-│   └── poller/            # Price data poller
 ## 📁 **Project Structure**
 
 ```
@@ -1339,8 +1316,9 @@ exchange/
 ├── README.md                       # This file
 ├── apps/
 │   ├── backend/                    # Express API server
-│   │   ├── package.json            # Backend dependencies
+│   │   ├── package.json            # Backend dependencies & scripts
 │   │   ├── tsconfig.json           # TypeScript configuration
+│   │   ├── tsconfig.tsbuildinfo    # TypeScript build cache
 │   │   ├── prisma/                 # Database schema & migrations
 │   │   │   ├── schema.prisma       # Database models & relations
 │   │   │   └── generated/          # Prisma client (auto-generated)
@@ -1356,8 +1334,9 @@ exchange/
 │   │           ├── sendEmail.ts    # Email utility for verification
 │   │           └── orderResponse.ts # Redis response handler
 │   ├── engine/                     # High-performance trading engine
-│   │   ├── package.json            # Engine dependencies
+│   │   ├── package.json            # Engine dependencies & scripts
 │   │   ├── tsconfig.json           # TypeScript configuration
+│   │   ├── tsconfig.tsbuildinfo    # TypeScript build cache
 │   │   ├── snapshots/              # File-based recovery snapshots
 │   │   └── src/
 │   │       ├── index.ts            # Engine entry point & lifecycle
@@ -1376,20 +1355,25 @@ exchange/
 │   │           ├── types.ts              # Snapshot data structures
 │   │           └── utils.ts              # Serialization utilities
 │   ├── frontend/                  # Next.js web application
-│   │   ├── package.json           # Frontend dependencies
+│   │   ├── package.json           # Frontend dependencies & scripts
 │   │   ├── next.config.ts         # Next.js configuration
+│   │   ├── next-env.d.ts          # Next.js environment types
+│   │   ├── postcss.config.mjs     # PostCSS configuration
 │   │   ├── tsconfig.json          # TypeScript configuration
-│   │   ├── app/                   # Next.js app directory
-│   │   └── public/                # Static assets
+│   │   ├── README.md              # Frontend-specific documentation
+│   │   ├── app/                   # Next.js app directory (pages & API routes)
+│   │   └── public/                # Static assets (images, fonts, etc.)
 │   └── poller/                    # Real-time price poller
-│       ├── package.json           # Poller dependencies
+│       ├── package.json           # Poller dependencies & scripts
 │       ├── tsconfig.json          # TypeScript configuration
+│       ├── tsconfig.tsbuildinfo   # TypeScript build cache
 │       └── src/
 │           └── index.ts           # WebSocket price streaming
 ├── packages/
 │   ├── config/                    # Centralized configuration
 │   │   ├── package.json           # Config package definition
 │   │   ├── tsconfig.json          # TypeScript configuration
+│   │   ├── tsconfig.tsbuildinfo   # TypeScript build cache
 │   │   └── src/
 │   │       └── index.ts           # Environment variables export
 │   └── typescript-config/         # Shared TypeScript presets
