@@ -569,21 +569,6 @@ GET /api/v1/user/signin/post?token=<jwt-token-from-email>
 
 **Description:** Validates the email token, creates user account in engine, stores user in database, and sets authentication cookie.
 
-#### **Get User Info**
-```bash
-GET /api/v1/user/me
-```
-**Headers:** `Cookie: authToken=<jwt-token>`
-
-**Response:**
-```json
-{
-  "user": {
-    "id": 1,
-    "email": "user123@gmail.com"
-  }
-}
-```
 
 ### 📊 Public Endpoints
 
