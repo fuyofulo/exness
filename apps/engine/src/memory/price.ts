@@ -1,6 +1,6 @@
 export type LatestPrice = {
     asset: string;
-    price: bigint;    // Changed to bigint
+    price: bigint;
     decimal: number;
 }
 
@@ -13,13 +13,4 @@ export function getCurrentPrice(asset: string): bigint | null {
 
 export function setPrice(asset: string, price: LatestPrice) {
     priceCache.set(asset, price);
-}
-
-export function getAllPrices(): Map<string, LatestPrice> {
-    return priceCache;
-}
-
-// Helper function to format price for display
-export function formatPrice(price: bigint, decimals: number): number {
-    return Number(price) / (10 ** decimals);
 }

@@ -43,19 +43,25 @@ ws.on('open', async () => {
     setInterval(async () => {
         const priceUpdates: priceUpdate[] = Array.from(latestPrices.values());
         if (priceUpdates.length > 0) {
-
             const serializedPriceUpdates = priceUpdates.map(update => ({
-                ...update,
-                price: update.price.toString()
+                asset: update.asset,
+                price: update.price.toString(),
+                decimal: update.decimal
             }));
-            
+
+            const jsonData = JSON.stringify(serializedPriceUpdates);
+            const base64Data = Buffer.from(jsonData).toString('base64');
+
             await rClient.xAdd(STREAM_NAME, '*', {
                 source: SOURCE,
-                data: JSON.stringify(serializedPriceUpdates),
+                data: base64Data, // Send base64 encoded data
+                format: 'base64_v1', // Version the format
                 timestamp: Date.now().toString()
             });
+
+            console.log(`📤 Poller published ${priceUpdates.length} price updates`);
         }
-    }, 100);
+    }, 1000);
 });
 
 ws.on('message', (data) => {
@@ -74,6 +80,8 @@ ws.on('message', (data) => {
         const scaledPrice = BigInt(Math.round(price * scalingFactor));
 
         // Update the latest price for this asset
+            // Store price silently - no logging for every price update
+
         latestPrices.set(symbol, {
             asset: symbol,
             price: scaledPrice,

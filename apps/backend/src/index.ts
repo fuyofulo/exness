@@ -1,11 +1,13 @@
 import express from 'express';
-import { connectRedis, getLatestPrice } from '@repo/redis';
+import cookieParser from 'cookie-parser';
 import { userRouter } from './routes/user';
-import { tradeRouter } from './routes/trade';
-import { balanceRouter } from './routes/balance';
+import { engineRouter } from './routes/engine';
+import { EventListener } from './eventlistener';
+import { createClient } from 'redis';
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 
 const supportedAssets = [
     'SOL_USDC',
@@ -14,20 +16,45 @@ const supportedAssets = [
 ];
 
 app.use('/api/v1/user', userRouter);
-app.use('/api/v1/trade', tradeRouter);
-app.use('/api/v1/balance', balanceRouter);
+app.use('/api/v1/engine', engineRouter);
 
-app.listen(3005, () => {
+const server = app.listen(3005, () => {
     console.log('Server is running on port 3005');
 });
 
-// http://localhost:3000?asset=SOL_USDC
-app.get('/', async (req, res) => {
-    await connectRedis();
-    console.log('get latest price endpoint has been hit');
+// Start the EventListener for handling liquidation events
+const eventListener = new EventListener();
+eventListener.start().catch((error) => {
+    console.error('Failed to start EventListener:', error);
+    process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+    console.log('Shutting down gracefully...');
+    await eventListener.stop();
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+});
+
+process.on('SIGTERM', async () => {
+    console.log('Shutting down gracefully...');
+    await eventListener.stop();
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+});
+
+// http://localhost:3005?asset=SOL_USDC
+app.get('/api/v1/price', async (req, res) => {
+    const redisclient = createClient();
+    await redisclient.connect();
     const asset = req.query.asset as string;
-    const price = await getLatestPrice(asset);
-    res.json(price);
+    const price = await redisclient.get(`price:${asset}`);
+    res.json(price ? JSON.parse(price) : null);
 })
 
 app.get('/api/v1/supportedAssets', async (req, res) => {

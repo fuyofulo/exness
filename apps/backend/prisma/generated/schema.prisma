@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id    Int    @id @default(autoincrement())
+  email String @unique
+
+  orders Order[]
+  trades Trade[]
+
+  @@map("users")
+}
+
+model Order {
+  id      Int    @id @default(autoincrement())
+  orderId String @unique // backend order ID
+  userId  Int
+  user    User   @relation(fields: [userId], references: [id])
+  email   String
+  command String // 'CREATE_TRADE', 'CLOSE_TRADE', 'GET_BALANCE', etc.
+
+  // Specific fields for user display
+  asset     String? // 'SOL_USDC', 'ETH_USDC', 'BTC_USDC'
+  direction String? // 'LONG', 'SHORT' (for trades)
+  amount    BigInt? // USD amount or asset amount depending on context
+  leverage  BigInt? // leverage multiplier (for CFD trades)
+  tradeId   String? // associated trade ID (for CLOSE_TRADE)
+
+  status    String // 'PENDING', 'SUCCESS', 'ERROR'
+  latencyMs Int?
+
+  @@map("orders")
+}
+
+model Trade {
+  id                       Int      @id @default(autoincrement())
+  tradeId                  String   @unique // engine trade ID
+  userId                   Int
+  user                     User     @relation(fields: [userId], references: [id])
+  email                    String
+  asset                    String // 'SOL_USDC', 'ETH_USDC', 'BTC_USDC'
+  direction                String // 'LONG' or 'SHORT'
+  margin                   BigInt // margin used (USD)
+  leverage                 BigInt // leverage multiplier (10-1000 representing 1.0x to 100.0x)
+  entryPrice               BigInt // entry price (scaled)
+  entryPriceDecimals       Int // decimal precision
+  liquidationPrice         BigInt? // liquidation price (scaled)
+  liquidationPriceDecimals Int? // decimal precision
+  stopLossPrice            BigInt? // stop loss price (scaled)
+  takeProfitPrice          BigInt? // take profit price (scaled)
+  triggerDecimals          Int? // decimal precision for stop loss/take profit
+  exitPrice                BigInt? // exit price (scaled)
+  exitPriceDecimals        Int? // decimal precision
+  pnl                      BigInt? // profit/loss (USD, scaled)
+  status                   String // 'OPEN', 'CLOSED', 'LIQUIDATED', 'STOP_LOSS', 'TAKE_PROFIT'
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@map("trades")
+}

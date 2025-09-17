@@ -1,4 +1,4 @@
-interface assetBalance {
+export interface assetBalance {
     balance: bigint,
     decimals: number
 }
@@ -38,19 +38,6 @@ export function getUsdBalance(email: string): bigint {
     return usdBalance ? usdBalance.balance : BigInt(0);
 }
 
-export function addAssetBalance(email: string, asset: string, amount: bigint, decimals: number): void {
-    const userBalance = userBalances.get(email);
-    if (!userBalance) return;
-    
-    if (!userBalance.balances[asset]) {
-        userBalance.balances[asset] = {
-            balance: BigInt(0),
-            decimals: decimals
-        };
-    }
-    
-    userBalance.balances[asset].balance += amount;
-}
 
 export function formatBalance(balance: bigint, decimals: number): number {
     return Number(balance) / (10 ** decimals);

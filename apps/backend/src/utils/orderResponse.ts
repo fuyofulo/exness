@@ -41,24 +41,48 @@ export class RedisSuscriber {
                         const orderId = message.message.orderId;
                         const status = message.message.status;
                         const data = message.message.data;
-                        
+                        const msg = message.message.message;
+
                         if (orderId && this.callbacks[orderId]) {
                             console.log(`Found callback for orderId: ${orderId}`);
+
+                            let parsedData = null;
+                            if (data) {
+                                try {
+                                    parsedData = JSON.parse(data);
+                                } catch (parseError) {
+                                    console.error(`Failed to parse data for ${orderId}:`, parseError);
+                                    parsedData = null;
+                                }
+                            }
+
                             const responseData = {
                                 orderId: orderId,
                                 status: status,
-                                data: data ? JSON.parse(data) : null
+                                data: parsedData,
+                                message: msg // Include the message field
                             };
                             this.callbacks[orderId](responseData);
                             delete this.callbacks[orderId]; // Clean up
                         }
                         
                         // Acknowledge the message
-                        await this.client.xAck(ENGINE_RESPONSE, 'backend_group', message.id);
+                        try {
+                            console.log(`Acknowledging message ${message.id}`);
+                            await this.client.xAck(ENGINE_RESPONSE, 'backend_group', message.id);
+                            console.log(`Successfully acknowledged message ${message.id}`);
+                        } catch (ackError: any) {
+                            console.error('Error acknowledging message:', ackError?.message || ackError);
+                            console.error('Message ID:', message.id);
+                            console.error('Ack error stack:', ackError?.stack);
+                            // Don't throw - just log the error to prevent backend crash
+                        }
                     }
                 }
-            } catch (error) {
-                console.error('Error in RedisSuscriber runloop:', error);
+            } catch (error: any) {
+                console.error('Error in RedisSuscriber runloop:', error?.message || error);
+                console.error('Runloop error stack:', error?.stack);
+                // Continue the loop instead of crashing
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
         }
@@ -76,9 +100,9 @@ export class RedisSuscriber {
             setTimeout(() => {
                 if (this.callbacks[callbackId]) {
                     delete this.callbacks[callbackId];
-                    reject()
+                    reject(new Error(`Timeout waiting for engine response for orderId: ${callbackId}`));
                 }
-            }, 5000)
+            }, 5000);
         })
     }
 }
