@@ -2,6 +2,40 @@
 
 A high-performance, real-time trading exchange built with modern technologies, featuring CFD (Contract for Difference) trading with leverage, automated liquidation systems, and enterprise-grade reliability.
 
+## 📖 Table of Contents
+
+- [**📊 Overview**](#-overview)
+- [**🏗️ Architecture**](#️-architecture)
+  - [System Components](#system-components)
+  - [Data Flow](#data-flow)
+- [**🔄 Engine Architecture & Memory Management**](#-engine-architecture--memory-management)
+  - [Redis Streams & Consumer Groups](#redis-streams--consumer-groups)
+  - [Database Architecture](#-database-architecture)
+  - [Complete Data Flow](#-complete-data-flow)
+- [**🛠️ Tech Stack**](#️-tech-stack)
+  - [Backend & Engine](#backend--engine)
+  - [Frontend](#frontend)
+  - [Infrastructure](#infrastructure)
+- [**✨ Key Features**](#-key-features)
+  - [Trading Features](#-trading-features)
+  - [Risk Management](#️-risk-management)
+  - [Performance](#-performance)
+  - [Security & Reliability](#-security--reliability)
+- [**⚡ Quick Start**](#-quick-start)
+- [**📋 API Documentation**](#-api-documentation)
+  - [Authentication Endpoints](#authentication-endpoints)
+  - [Public Endpoints](#public-endpoints)
+  - [Trading Endpoints](#trading-endpoints)
+  - [Response Format](#response-format)
+  - [Authentication](#authentication)
+  - [Rate Limiting & Performance](#rate-limiting--performance)
+- [**🧪 Testing**](#-testing)
+- [**📁 Project Structure**](#-project-structure)
+- [**🔧 Configuration**](#-configuration)
+- [**🚀 Deployment**](#-deployment)
+- [**📊 Monitoring & Observability**](#-monitoring--observability)
+- [**🛠️ Development**](#️-development)
+
 ## 📊 Overview
 
 This platform provides a complete trading ecosystem with:
