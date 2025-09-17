@@ -421,8 +421,7 @@ Consumer: 'liquidation_consumer'
 
 ### Prerequisites
 - Node.js 18+
-- PostgreSQL 14+
-- Redis 7+
+- Docker & Docker Compose
 - npm or yarn
 
 ### Installation
@@ -440,32 +439,101 @@ Consumer: 'liquidation_consumer'
 
 3. **Set up environment variables**
    ```bash
-   cp .env.example .env
-   # Edit .env with your database and Redis credentials
+   cd packages/config
+   cp .env.example .env  # Create this file with your configuration
    ```
 
-4. **Set up database**
+   **Required environment variables in `packages/config/.env`:**
+   ```bash
+   # Redis Configuration
+   REDIS_URL=redis://localhost:6379
+
+   # Database Configuration
+   PERSISTENT_DATABASE_URL=postgresql://postgres:password123@localhost:5432/exchange
+
+   # JWT Secrets (Generate strong random strings)
+   AUTH_JWT_SECRET=your-super-secret-auth-jwt-key-here-make-it-long-and-random
+   EMAIL_JWT_SECRET=your-email-jwt-secret-here
+
+   # Email Configuration (for user verification)
+   GOOGLE_EMAIL=your-email@gmail.com
+   GOOGLE_APP_PASSWORD=your-google-app-password
+
+   # Backend Configuration
+   BACKEND_URL=http://localhost:3005
+   ```
+
+4. **Start Docker services**
+   ```bash
+   # First time setup: Start PostgreSQL and Redis
+   docker-compose up -d
+
+   # If containers already exist, restart them
+   docker-compose restart
+
+   # Or if you need to recreate containers (removes old data)
+   docker-compose down
+   docker-compose up -d
+
+   # Verify containers are running
+   docker ps
+   ```
+
+5. **Set up database**
    ```bash
    cd apps/backend
    npx prisma migrate dev
    npx prisma generate
    ```
 
-5. **Build the project**
+6. **Build and start the platform**
    ```bash
-   npm run build
-   ```
-
-6. **Start all services**
-   ```bash
+   cd ../..  # Back to root
    npm run dev
    ```
 
-This will start:
-- Backend API on `http://localhost:3005`
-- Frontend on `http://localhost:3000`
-- Trading Engine with snapshotting
-- Price Poller for real-time data
+### 🐳 Docker Services
+
+The platform uses two Docker containers:
+
+**PostgreSQL Database:**
+- **Image:** `postgres:15-alpine`
+- **Port:** `5432`
+- **Database:** `exchange`
+- **User:** `postgres`
+- **Password:** `password123`
+
+**Redis Cache/Message Queue:**
+- **Image:** `redis:7-alpine`
+- **Port:** `6379`
+- **Persistence:** Enabled with append-only file
+
+### 🖥️ Running Services
+
+After setup, you'll have:
+- **Backend API:** `http://localhost:3005`
+- **Frontend:** `http://localhost:3000` (when implemented)
+- **Trading Engine:** Running with snapshotting
+- **Price Poller:** Streaming real-time prices
+
+### 🔧 Docker Commands
+
+```bash
+# Start services
+docker-compose up -d
+
+# Stop services
+docker-compose down
+
+# View logs
+docker-compose logs -f
+
+# Restart services
+docker-compose restart
+
+# Clean up (removes volumes too)
+docker-compose down -v
+```
 
 ## 📋 API Documentation
 
@@ -628,7 +696,7 @@ REDIS_URL="redis://localhost:6379"
 AUTH_JWT_SECRET="your-secret-key"
 
 # Engine
-ENGINE_SNAPSHOT_INTERVAL=15000  # 15 seconds
+ENGINE_SNAPSHOT_INTERVAL=5000   # 5 seconds
 ENGINE_MAX_SNAPSHOTS=10
 
 # Price Poller
@@ -638,28 +706,83 @@ POLLER_UPDATE_INTERVAL=1000  # 1 second
 
 ## 🚀 Deployment
 
-### Development
+### Development with Docker
 ```bash
-npm run dev          # Start all services in development
-npm run build        # Build all services
-npm run start        # Start all services in production
+# Start database and Redis
+docker-compose up -d
+
+# Start all services in development
+npm run dev
+
+# View all running services
+docker ps
+npm run dev  # Shows which services are running
 ```
 
-### Production with PM2
+### Production with Docker
 ```bash
-npm install -g pm2
-pm2 start ecosystem.config.js
+# Start all infrastructure
+docker-compose up -d
+
+# Build and start services
+npm run build
+npm run start
 ```
 
-### Docker Deployment
+### Infrastructure Management
 ```bash
+# Start database and Redis only
+docker-compose up -d
+
+# Stop infrastructure
+docker-compose down
+
+# View logs
+docker-compose logs -f
+
+# Restart services
+docker-compose restart
+
+# Clean up (removes volumes)
+docker-compose down -v
+```
+
+### 🔧 Troubleshooting Docker Issues
+
+**If containers already exist:**
+```bash
+# Restart existing containers
+docker-compose restart
+
+# Or recreate containers (keeps data)
+docker-compose up -d --force-recreate
+
+# Or remove and recreate (loses data)
+docker-compose down
 docker-compose up -d
 ```
+
+**Check container status:**
+```bash
+# List all containers (running and stopped)
+docker ps -a
+
+# List only running containers
+docker ps
+
+# Remove specific container if needed
+docker rm redis-exchange backend-exchange
+```
+
+**Common issues:**
+- **Port conflicts**: Check if ports 5432 or 6379 are already in use
+- **Container name conflicts**: Use `docker rm` to remove old containers
+- **Volume issues**: Use `docker-compose down -v` to clean volumes
 
 ## 📊 Monitoring & Observability
 
 ### Built-in Monitoring
-- **Snapshot Health**: Automatic snapshot creation every 15s
+- **Snapshot Health**: Automatic snapshot creation every 5s
 - **Recovery Status**: Logs recovery success/failure
 - **Trade Processing**: Real-time trade execution metrics
 - **Error Handling**: Comprehensive error logging
