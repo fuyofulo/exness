@@ -23,7 +23,7 @@ A high-performance, real-time trading exchange built with modern technologies, f
   - [Security & Reliability](#-security--reliability)
 - [**⚡ Quick Start**](#-quick-start)
 - [**📋 API Documentation**](#-api-documentation)
-  - [Authentication Endpoints](#authentication-endpoints)
+  - [Authentication Endpoints](#-authentication-endpoints)
   - [Public Endpoints](#public-endpoints)
   - [Trading Endpoints](#trading-endpoints)
   - [Response Format](#response-format)
