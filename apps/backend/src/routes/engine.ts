@@ -51,6 +51,7 @@ function extractOrderData(originalCommand: string, body: EngineRequestBody, payl
 type EngineCommand =
   | 'GET_BALANCE'
   | 'GET_USD_BALANCE'
+  | 'GET_ASSET_PRICE'
   | 'CREATE_ACCOUNT'
   | 'CREATE_TRADE'
   | 'CLOSE_TRADE';
@@ -89,6 +90,7 @@ app.post('/', authMiddleware, async (req, res) => {
         switch (command) {
             case 'GET_BALANCE':
             case 'GET_USD_BALANCE':
+            case 'GET_ASSET_PRICE':
             case 'CREATE_ACCOUNT':
                 break;
             case 'CREATE_TRADE':
@@ -173,16 +175,18 @@ app.post('/', authMiddleware, async (req, res) => {
         const endTime = Date.now();
         const latency = endTime - startTime;
 
-        // Create order record in database after engine response
-        try {
-            const orderData = extractOrderData(command, body, payload, email, orderId, req.user!.userId);
-            await prisma.order.create({
-                data: orderData
-            });
-            console.log(`Order record created: ${orderId}`);
-        } catch (dbError: any) {
-            console.error('Failed to create order record:', dbError?.message || dbError);
-            // Continue anyway - don't block the response
+        // Create order record in database after engine response (skip for read-only commands)
+        if (!['CREATE_ACCOUNT', 'GET_BALANCE', 'GET_USD_BALANCE', 'GET_ASSET_PRICE'].includes(command)) {
+            try {
+                const orderData = extractOrderData(command, body, payload, email, orderId, req.user!.userId);
+                await prisma.order.create({
+                    data: orderData
+                });
+                console.log(`Order record created: ${orderId}`);
+            } catch (dbError: any) {
+                console.error('Failed to create order record:', dbError?.message || dbError);
+                // Continue anyway - don't block the response
+            }
         }
 
         // Check if engine returned an error and handle it properly
@@ -219,19 +223,21 @@ app.post('/', authMiddleware, async (req, res) => {
 
         console.log(`Engine operation successful for ${orderId}`);
 
-        // Update order status to SUCCESS in database
-        try {
-            await prisma.order.update({
-                where: { orderId },
-                data: {
-                    status: 'SUCCESS',
-                    latencyMs: latency
-                }
-            });
-            console.log(`Order status updated to SUCCESS: ${orderId}`);
-        } catch (dbUpdateError: any) {
-            console.error('Failed to update order status:', dbUpdateError?.message || dbUpdateError);
-            // Continue anyway - don't block the response
+        // Update order status to SUCCESS in database (skip for read-only commands)
+        if (!['CREATE_ACCOUNT', 'GET_BALANCE', 'GET_USD_BALANCE', 'GET_ASSET_PRICE'].includes(command)) {
+            try {
+                await prisma.order.update({
+                    where: { orderId },
+                    data: {
+                        status: 'SUCCESS',
+                        latencyMs: latency
+                    }
+                });
+                console.log(`Order status updated to SUCCESS: ${orderId}`);
+            } catch (dbUpdateError: any) {
+                console.error('Failed to update order status:', dbUpdateError?.message || dbUpdateError);
+                // Continue anyway - don't block the response
+            }
         }
 
         // Create trade record in database for CREATE_TRADE commands

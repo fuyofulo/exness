@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/listener/orders.ts","./src/listener/price.ts","./src/memory/balance.ts","./src/memory/price.ts","./src/memory/trades.ts","./src/processor/processor.ts"],"version":"5.9.2"}
+{"root":["./src/index.ts","./src/listener/orders.ts","./src/listener/price.ts","./src/memory/balance.ts","./src/memory/price.ts","./src/memory/trades.ts","./src/processor/processor.ts","./src/snapshot/RecoveryManager.ts","./src/snapshot/SnapshotManager.ts","./src/snapshot/types.ts","./src/snapshot/utils.ts"],"version":"5.9.2"}

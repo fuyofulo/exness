@@ -21,11 +21,19 @@ export async function listenToPrice(rClient: RedisClientType) {
     }
 
     // Create fresh consumer group starting from latest messages
+    // This ensures we only get NEW price updates, not historical backlog
     try {
         await rClient.xGroupCreate(STREAM_NAME, GROUP_NAME, '$', { MKSTREAM: true });
         console.log(`Created fresh consumer group: ${GROUP_NAME} starting from latest`);
     } catch (err) {
-        // Group might already exist
+        // Group might already exist - recreate it to ensure clean state
+        try {
+            await rClient.xGroupDestroy(STREAM_NAME, GROUP_NAME);
+            await rClient.xGroupCreate(STREAM_NAME, GROUP_NAME, '$', { MKSTREAM: true });
+            console.log(`Recreated consumer group: ${GROUP_NAME} for clean recovery`);
+        } catch (recreateErr) {
+            console.error('Failed to recreate consumer group:', recreateErr);
+        }
     }
 
     while (true) {

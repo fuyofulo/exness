@@ -15,10 +15,12 @@
   "type": "commonjs",
   "dependencies": {
     "@repo/redis": "file:../../packages/redis",
-    "@types/node": "^24.3.0",
     "dotenv": "^17.2.2",
     "node": "^22.19.0",
     "redis": "^5.8.2",
     "typescript": "^5.9.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.1"
   }
 }

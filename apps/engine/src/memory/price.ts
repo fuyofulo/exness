@@ -4,7 +4,7 @@ export type LatestPrice = {
     decimal: number;
 }
 
-const priceCache: Map<string, LatestPrice> = new Map();
+export const priceCache: Map<string, LatestPrice> = new Map();
 
 export function getCurrentPrice(asset: string): bigint | null {
     const price = priceCache.get(asset);

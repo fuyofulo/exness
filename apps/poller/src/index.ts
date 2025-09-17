@@ -58,8 +58,6 @@ ws.on('open', async () => {
                 format: 'base64_v1', // Version the format
                 timestamp: Date.now().toString()
             });
-
-            console.log(`📤 Poller published ${priceUpdates.length} price updates`);
         }
     }, 1000);
 });
