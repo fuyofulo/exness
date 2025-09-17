@@ -43,6 +43,333 @@ This platform provides a complete trading ecosystem with:
 4. **Database** → Persistent storage of trades and users
 5. **Frontend** → User interface for trading
 
+## 🔄 **Data Architecture & Streams**
+
+### Redis Streams & Consumer Groups
+
+This platform uses **Redis Streams** for high-throughput, reliable message passing between components. Each stream has dedicated consumer groups for load balancing and fault tolerance.
+
+#### 📊 **Stream 1: Price Updates (`engine_input`)**
+**Purpose:** Real-time price streaming from Poller to Engine
+```typescript
+Stream: 'engine_input'
+Producer: Price Poller (WebSocket → Redis)
+Consumer: Engine Price Listener
+Consumer Group: 'engine_price_group'
+Consumer: 'engine_price_1'
+```
+
+**Data Format:**
+```json
+{
+  "source": "poller",
+  "data": "base64-encoded-json",
+  "format": "base64_v1",
+  "timestamp": "1758117494823"
+}
+```
+
+**Decoded Data:**
+```json
+[{
+  "asset": "SOL_USDC",
+  "price": "20347000000",
+  "decimal": 6
+}]
+```
+
+#### 📊 **Stream 2: Commands (`backend-to-engine`)**
+**Purpose:** User commands from Backend to Engine
+```typescript
+Stream: 'backend-to-engine'
+Producer: Backend API
+Consumer: Engine Orders Listener
+Consumer Group: 'engine_orders_group'
+Consumer: 'engine_2'
+```
+
+**Data Format:**
+```json
+{
+  "orderId": "uuid-v4",
+  "command": "CREATE_TRADE",
+  "email": "user@example.com",
+  "tradeData": "{\"asset\":\"SOL_USDC\",\"direction\":\"LONG\",\"margin\":1000,\"leverage\":50}",
+  "timestamp": "1758117494823"
+}
+```
+
+#### 📊 **Stream 3: Responses (`engine_response`)**
+**Purpose:** Engine responses back to Backend
+```typescript
+Stream: 'engine_response'
+Producer: Engine Orders Listener
+Consumer: Backend Response Handler
+Consumer Group: 'backend_group'
+Consumer: 'backend_consumer'
+```
+
+**Data Format:**
+```json
+{
+  "orderId": "uuid-v4",
+  "status": "success",
+  "data": "{\"email\":\"user@example.com\",\"tradeId\":\"trade_123\",\"entryPrice\":203.47}",
+  "message": "Trade created successfully",
+  "timestamp": "1758117494823"
+}
+```
+
+#### 📊 **Stream 4: Events (`engine_events`)**
+**Purpose:** Asynchronous events (liquidations, closures) from Engine to Backend
+```typescript
+Stream: 'engine_events'
+Producer: Engine Price Listener (on trigger execution)
+Consumer: Backend EventListener
+Consumer Group: 'liquidation_group'
+Consumer: 'liquidation_consumer'
+```
+
+**Data Format:**
+```json
+{
+  "eventType": "TRADE_LIQUIDATED",
+  "tradeId": "trade_123",
+  "email": "user@example.com",
+  "asset": "SOL_USDC",
+  "pnl": "-5000.00",
+  "marginReturned": "1000.00",
+  "closePrice": "201.23",
+  "timestamp": "1758117494823"
+}
+```
+
+### 💾 **Database Architecture**
+
+#### **PostgreSQL Database (Persistent Storage)**
+**Purpose:** Long-term data persistence and audit trail
+
+**Tables:**
+
+1. **`users`** - User accounts
+   ```sql
+   CREATE TABLE users (
+     id SERIAL PRIMARY KEY,
+     email VARCHAR UNIQUE NOT NULL
+   );
+   ```
+
+2. **`orders`** - All user commands and their results
+   ```sql
+   CREATE TABLE orders (
+     id SERIAL PRIMARY KEY,
+     orderId VARCHAR UNIQUE NOT NULL,
+     userId INTEGER REFERENCES users(id),
+     email VARCHAR NOT NULL,
+     command VARCHAR NOT NULL,
+     asset VARCHAR,
+     direction VARCHAR,
+     amount BIGINT,  -- Scaled BigInt (e.g., 10000000 = 1000.00 USD)
+     leverage BIGINT,
+     tradeId VARCHAR,
+     status VARCHAR NOT NULL,  -- 'PENDING', 'SUCCESS', 'ERROR'
+     latencyMs INTEGER
+   );
+   ```
+
+3. **`trades`** - CFD trading positions
+   ```sql
+   CREATE TABLE trades (
+     id SERIAL PRIMARY KEY,
+     tradeId VARCHAR UNIQUE NOT NULL,
+     userId INTEGER NOT NULL REFERENCES users(id),
+     email VARCHAR NOT NULL,
+     asset VARCHAR NOT NULL,
+     direction VARCHAR NOT NULL,
+     margin BIGINT NOT NULL,     -- Scaled USD (10000 = 1.00 USD)
+     leverage BIGINT NOT NULL,   -- Integer: 10-1000 (1.0x to 100.0x)
+     entryPrice BIGINT NOT NULL, -- Scaled price
+     entryPriceDecimals INTEGER NOT NULL,
+     liquidationPrice BIGINT,
+     liquidationPriceDecimals INTEGER,
+     stopLossPrice BIGINT,
+     takeProfitPrice BIGINT,
+     triggerDecimals INTEGER,
+     exitPrice BIGINT,
+     exitPriceDecimals INTEGER,
+     pnl BIGINT,
+     status VARCHAR NOT NULL,    -- 'OPEN', 'CLOSED', 'LIQUIDATED', 'STOP_LOSS', 'TAKE_PROFIT'
+     createdAt TIMESTAMP DEFAULT NOW(),
+     updatedAt TIMESTAMP DEFAULT NOW()
+   );
+   ```
+
+#### **In-Memory Data Structures (Engine)**
+**Purpose:** High-performance trading data with sub-millisecond access
+
+**Maps:**
+
+1. **`userBalances`** - User financial positions
+   ```typescript
+   Map<string, UserBalance>  // email → balances
+
+   interface UserBalance {
+     email: string;
+     balances: Record<string, {
+       balance: bigint;    // e.g., 50000000 = 5000.00 USD
+       decimals: number;   // e.g., 4 (for 0.0001 precision)
+     }>;
+   }
+   ```
+
+2. **`openTrades`** - Active CFD positions
+   ```typescript
+   Map<string, Trade>  // tradeId → trade
+
+   interface Trade {
+     orderId: string;
+     email: string;
+     asset: string;
+     direction: 'LONG' | 'SHORT';
+     margin: bigint;
+     leverage: bigint;
+     entryPrice: bigint;
+     entryPriceDecimals: number;
+     liquidationPrice?: bigint;
+     stopLossPrice?: bigint;
+     takeProfitPrice?: bigint;
+     triggerDecimals?: number;
+     exitPrice?: bigint;
+     exitPriceDecimals?: number;
+     pnl: bigint;
+     status: 'OPEN' | 'CLOSED' | 'LIQUIDATED' | 'STOP_LOSS' | 'TAKE_PROFIT';
+     timestamp: number;
+   }
+   ```
+
+3. **`closedTrades`** - Historical CFD positions
+   ```typescript
+   Map<string, Trade>  // tradeId → trade (same as openTrades)
+   ```
+
+4. **`userTrades`** - User trade lookup
+   ```typescript
+   Map<string, string[]>  // email → [tradeId1, tradeId2, ...]
+   ```
+
+5. **`tradeTriggerBitmaps`** - O(1) trigger lookups
+   ```typescript
+   Map<string, {  // asset → trigger data
+     long: Map<number, Set<{
+       tradeId: string;
+       triggerType: 'liquidation' | 'stop_loss' | 'take_profit';
+       triggerPrice: bigint;
+     }>>;
+     short: Map<number, Set<{
+       tradeId: string;
+       triggerType: 'liquidation' | 'stop_loss' | 'take_profit';
+       triggerPrice: bigint;
+     }>>;
+   }>
+   ```
+
+6. **`priceCache`** - Latest asset prices
+   ```typescript
+   Map<string, LatestPrice>  // asset → price data
+
+   interface LatestPrice {
+     asset: string;
+     price: bigint;     // e.g., 20347000000 = 203.47000000
+     decimal: number;   // e.g., 6
+   }
+   ```
+
+#### **File-Based Snapshots (Engine)**
+**Purpose:** Crash recovery with < 5 second recovery time
+
+**Storage:**
+- **Location:** `/engine/snapshots/`
+- **Format:** Compressed JSON (`timestamp.json.gz`)
+- **Retention:** Last 10 snapshots
+- **Frequency:** Every 5 seconds
+- **Integrity:** SHA-256 checksums
+
+**Snapshot Contents:**
+```json
+{
+  "version": "1.0.0",
+  "timestamp": 1758117494823,
+  "checksum": "f19eca3b...",
+  "data": {
+    "userBalances": [...],
+    "openTrades": [...],
+    "closedTrades": [...],
+    "tradeTriggerBitmaps": {...},
+    "metadata": {...}
+  }
+}
+```
+
+**Recovery Process:**
+1. Load latest snapshot from `/snapshots/latest.json.gz`
+2. Validate checksum and version
+3. Deserialize BigInt values from strings
+4. Rebuild in-memory data structures
+5. Resume normal operation
+
+### 🔄 **Complete Data Flow**
+
+```
+┌─────────────┐     ┌─────────────┐     ┌──────────────┐
+│   Poller    │     │    Redis    │     │   Engine     │
+│             │     │   Streams   │     │              │
+│ WebSocket   │────►│engine_input │────►│Price Listener│
+│ BTC/ETH/SOL │     │             │     │              │
+└─────────────┘     └─────────────┘     └───────┬──────┘
+                                                │
+┌─────────────┐     ┌─────────────┐             │
+│  Backend    │     │    Redis    │             │
+│             │     │   Streams   │             │
+│   API       ┼────►│ backend-to- │             │
+│ Commands    │     │  engine     │             │
+└─────────────┘     └─────────────┘             │
+                              │                 │
+                              ▼                 ▼
+                       ┌─────────────┐    ┌─────────────┐
+                       │ Engine Resp │    │Price Cache  │
+                       │  Handler    │    │             │
+                       │             │    │In-Memory    │
+                       │engine_resp  │◄───┤Maps         │
+                       │  stream     │    │             │
+                       └─────────────┘    └──────┬──────┘
+                              ▲                  │
+                              │                  ▼
+                       ┌──────────────┐    ┌──────────────┐
+                       │Event Listener│    │Trade Triggers│
+                       │              │    │              │
+                       │engine_events │◄───┤Liquidation/  │
+                       │  stream      │    │SL/TP Checks  │
+                       └──────┬───────┘    └──────────────┘
+                              │
+                              ▼
+                       ┌─────────────┐
+                       │PostgreSQL   │
+                       │Database     │
+                       │             │
+                       │Users/Orders/│
+                       │Trades       │
+                       └─────────────┘
+
+┌──────────────┐
+│File System   │
+│Snapshots     │
+│              │
+│latest.json.gz│
+│1758117*.json │
+│checksums     │
+└──────────────┘
+```
+
 ## 🛠️ Tech Stack
 
 ### Backend & Engine
