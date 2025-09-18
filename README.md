@@ -50,7 +50,7 @@ This platform provides a complete trading ecosystem with:
 
 ### System Components
 
-![System Architecture](./architecture.png)
+![System Architecture](./image.png)
 
 ### Data Flow
 
