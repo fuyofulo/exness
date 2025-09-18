@@ -50,24 +50,7 @@ This platform provides a complete trading ecosystem with:
 
 ### System Components
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│     Frontend    │    │     Backend     │    │     Engine      │
-│                 │    │                 │    │                 │
-│  - Next.js      │◄──►│  - Express      │◄──►│  - Trading Core │
-│  - React        │    │  - PostgreSQL   │    │  - In-Memory DB │
-│  - TypeScript   │    │  - JWT Auth     │    │  - Redis Streams│
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │                        │
-                              ▼                        ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │     Database    │    │   Price Poller  │
-                       │                 │    │                 │
-                       │  - User Data    │◄──►│  - WebSocket    │
-                       │  - Trade History│    │  - Real-time    │
-                       │  - Orders       │    │  - BTC/ETH/SOL  │
-                       └─────────────────┘    └─────────────────┘
-```
+![System Architecture](./architecture.png)
 
 ### Data Flow
 
