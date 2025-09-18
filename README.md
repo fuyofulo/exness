@@ -6,7 +6,6 @@ A high-performance, real-time trading exchange built with modern technologies, f
 
 - [**📊 Overview**](#-overview)
 - [**🏗️ Architecture**](#️-architecture)
-  - [System Components](#system-components)
   - [Data Flow](#data-flow)
 - [**🔄 Engine Architecture & Memory Management**](#-engine-architecture--memory-management)
   - [Redis Streams & Consumer Groups](#redis-streams--consumer-groups)
@@ -47,9 +46,6 @@ This platform provides a complete trading ecosystem with:
 - **Comprehensive Audit Trail** with database persistence
 
 ## 🏗️ Architecture
-
-### System Components
-
 ![System Architecture](./image.png)
 
 ### Data Flow
