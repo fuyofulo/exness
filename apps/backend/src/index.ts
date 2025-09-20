@@ -4,6 +4,7 @@ import { userRouter } from './routes/user';
 import { engineRouter } from './routes/engine';
 import { EventListener } from './eventlistener';
 import { createClient } from 'redis';
+import { candlesRouter } from './routes/candles';
 
 const app = express();
 app.use(express.json());
@@ -17,6 +18,7 @@ const supportedAssets = [
 
 app.use('/api/v1/user', userRouter);
 app.use('/api/v1/engine', engineRouter);
+app.use('/api/v1/candles', candlesRouter);
 
 const server = app.listen(3005, () => {
     console.log('Server is running on port 3005');
