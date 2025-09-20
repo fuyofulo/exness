@@ -207,6 +207,17 @@ export class EventListener {
                 }
             }
 
+            // Update the corresponding Order status to match the trade status
+            try {
+                await this.prisma.order.updateMany({
+                    where: { tradeId: tradeId },
+                    data: { status: 'LIQUIDATED' }
+                });
+                console.log(` Updated order status to LIQUIDATED for trade ${tradeId}`);
+            } catch (orderUpdateError: any) {
+                console.error(` Failed to update order status for trade ${tradeId}:`, orderUpdateError?.message || orderUpdateError);
+            }
+
             // Note: Balances are maintained in-engine only, no database updates needed
 
         } catch (error: any) {
@@ -278,6 +289,17 @@ export class EventListener {
                     // Wait 100ms before retry
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
+            }
+
+            // Update the corresponding Order status to match the trade status
+            try {
+                await this.prisma.order.updateMany({
+                    where: { tradeId: tradeId },
+                    data: { status: status }
+                });
+                console.log(` Updated order status to ${status} for trade ${tradeId}`);
+            } catch (orderUpdateError: any) {
+                console.error(` Failed to update order status for trade ${tradeId}:`, orderUpdateError?.message || orderUpdateError);
             }
 
             // Note: Balances are maintained in-engine only, no database updates needed

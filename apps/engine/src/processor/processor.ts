@@ -1,5 +1,5 @@
-import { getUserBalance, createUserAccount, getUsdBalance, formatBalance } from '../memory/balance';
-import { createTrade, closeTrade, openTrades } from '../memory/trades';
+import { getUserBalance, createUserAccount, getUsdBalance, formatBalance, userBalances } from '../memory/balance';
+import { createTrade, closeTrade, openTrades, closedTrades, userTrades, tradeTriggerBitmaps } from '../memory/trades';
 import { getCurrentPrice } from '../memory/price';
 import { RedisClientType } from 'redis';
 
@@ -53,7 +53,8 @@ export async function processCommand(command: Command, rClient?: RedisClientType
             case 'CLOSE_TRADE':
                 return await handleCloseTrade(email, data, rClient);
 
-            // BUY/SELL are normalized to CREATE_TRADE in backend; not needed here
+            case 'DELETE_USER':
+                return await handleDeleteUser(email, rClient);
 
             default:
                 return {
@@ -120,8 +121,12 @@ async function handleGetUsdBalance(email: string): Promise<ProcessorResponse> {
 
 async function handleCreateAccount(email: string): Promise<ProcessorResponse> {
     try {
+        console.log(`Attempting to create account for: ${email}`);
+        console.log(`Current users in engine:`, Array.from(userBalances.keys()));
+        
         const existingBalance = getUserBalance(email);
         if (existingBalance) {
+            console.log(`Account already exists for: ${email}`);
             return {
                 status: 'error',
                 message: 'Account already exists'
@@ -326,6 +331,120 @@ async function handleCloseTrade(email: string, data: any, rClient?: RedisClientT
         return {
             status: 'error',
             message: `Failed to close trade: ${error instanceof Error ? error.message : String(error)}`
+        };
+    }
+}
+
+async function handleDeleteUser(email: string, rClient?: RedisClientType): Promise<ProcessorResponse> {
+    try {
+        // Check if user exists
+        const userBalance = getUserBalance(email);
+        if (!userBalance) {
+            return {
+                status: 'error',
+                message: 'User not found'
+            };
+        }
+
+        console.log(`Deleting user ${email} from engine`);
+
+        // Step 1: Close all open trades for this user
+        const allUserTradeIds = userTrades.get(email) || [];
+        const openTradeIds = allUserTradeIds.filter(tradeId => openTrades.has(tradeId));
+        
+        let closedTradesCount = 0;
+        let totalMarginReturned = BigInt(0);
+        let totalPnL = BigInt(0);
+
+        for (const tradeId of openTradeIds) {
+            const trade = openTrades.get(tradeId);
+            if (trade) {
+                // Get current price for the trade's asset
+                const currentPrice = getCurrentPrice(trade.asset);
+                if (currentPrice) {
+                    const assetDecimals = ASSET_DECIMALS[trade.asset] ?? 6;
+                    const closedTrade = closeTrade(tradeId, currentPrice, assetDecimals);
+                    
+                    if (closedTrade) {
+                        closedTradesCount++;
+                        totalMarginReturned += closedTrade.margin;
+                        totalPnL += closedTrade.pnl;
+
+                        // Publish trade closure event
+                        if (rClient) {
+                            try {
+                                await rClient.xAdd(ENGINE_EVENTS, '*', {
+                                    eventType: 'TRADE_CLOSED',
+                                    tradeId: closedTrade.orderId,
+                                    email: email,
+                                    asset: closedTrade.asset,
+                                    pnl: (Number(closedTrade.pnl) / 10000).toString(),
+                                    marginReturned: (Number(closedTrade.margin) / 10000).toString(),
+                                    closePrice: (Number(currentPrice) / Math.pow(10, assetDecimals)).toFixed(assetDecimals),
+                                    timestamp: Date.now().toString()
+                                });
+                                console.log(`Published trade closure event for ${closedTrade.orderId}`);
+                            } catch (publishError) {
+                                console.error(`Failed to publish trade closure event for ${closedTrade.orderId}:`, publishError);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Step 2: Return all remaining balances to user (final balance)
+        const finalUsdBalance = userBalance.balances['USD']?.balance || BigInt(0);
+        const finalUsdFormatted = formatBalance(finalUsdBalance, USD_DECIMALS);
+
+        // Step 3: Remove user from all in-memory data structures
+        // Get user trade IDs before deleting userTrades (use the same variable from Step 1)
+        const userTradeIdsForCleanup = allUserTradeIds;
+        
+        userBalances.delete(email);
+        userTrades.delete(email);
+
+        // Remove user's trades from trigger bitmaps
+        for (const [asset, bitmapData] of tradeTriggerBitmaps.entries()) {
+            // Remove from long triggers
+            for (const [priceKey, triggers] of bitmapData.long.entries()) {
+                const filteredTriggers = Array.from(triggers).filter(trigger => !userTradeIdsForCleanup.includes(trigger.tradeId));
+                if (filteredTriggers.length === 0) {
+                    bitmapData.long.delete(priceKey);
+                } else {
+                    bitmapData.long.set(priceKey, new Set(filteredTriggers));
+                }
+            }
+            
+            // Remove from short triggers
+            for (const [priceKey, triggers] of bitmapData.short.entries()) {
+                const filteredTriggers = Array.from(triggers).filter(trigger => !userTradeIdsForCleanup.includes(trigger.tradeId));
+                if (filteredTriggers.length === 0) {
+                    bitmapData.short.delete(priceKey);
+                } else {
+                    bitmapData.short.set(priceKey, new Set(filteredTriggers));
+                }
+            }
+        }
+
+        console.log(`User ${email} deleted from engine - closed ${closedTradesCount} trades, returned $${finalUsdFormatted}`);
+
+        return {
+            status: 'success',
+            message: 'User deleted successfully',
+            data: {
+                email,
+                closedTradesCount,
+                finalBalance: finalUsdFormatted,
+                totalMarginReturned: formatBalance(totalMarginReturned, USD_DECIMALS),
+                totalPnL: formatBalance(totalPnL, USD_DECIMALS)
+            }
+        };
+
+    } catch (error) {
+        return {
+            status: 'error',
+            message: `Failed to delete user: ${error instanceof Error ? error.message : String(error)}`
         };
     }
 }

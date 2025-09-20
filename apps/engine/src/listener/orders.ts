@@ -64,6 +64,7 @@ export async function listenToOrders(rClient: RedisClientType) {
 
                         const responseData = {
                             orderId: orderId,
+                            command: command, // Include the command that was executed
                             status: result.status,
                             data: result.data ? JSON.stringify(result.data) : 'null',
                             message: result.message,

@@ -24,6 +24,7 @@ A high-performance, real-time trading exchange built with modern technologies, f
 - [**📋 API Documentation**](#-api-documentation)
   - [Authentication Endpoints](#-authentication-endpoints)
   - [Public Endpoints](#-public-endpoints)
+  - [User Profile Endpoints](#-user-profile-endpoints)
   - [Trading Endpoints](#-trading-endpoints)
   - [Response Format](#-response-format)
   - [Authentication](#-authentication)
@@ -614,6 +615,82 @@ GET /api/v1/supportedAssets
   "BTC_USDC"
 ]
 ```
+
+### 👤 User Profile Endpoints (Require Authentication)
+
+**All user endpoints require:** `Cookie: authToken=<jwt-token>`
+
+#### **Get User Profile**
+```bash
+GET /api/v1/user/me
+```
+
+**Response:**
+```json
+{
+  "user": {
+    "id": 1,
+    "email": "user123@gmail.com"
+  }
+}
+```
+
+**Description:** Returns the authenticated user's profile information.
+
+#### **Get User Orders**
+```bash
+GET /api/v1/user/orders
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "orders": [
+    {
+      "orderId": "uuid-v4",
+      "command": "CREATE_TRADE",
+      "status": "OPEN",
+      "asset": "SOL_USDC",
+      "direction": "LONG",
+      "amount": "10000000",
+      "leverage": "50",
+      "tradeId": "trade_123",
+      "id": 123,
+      "latencyMs": 5
+    }
+  ],
+  "count": 1
+}
+```
+
+**Description:** Returns all orders for the authenticated user, ordered by ID (most recent first). BigInt fields (`amount`, `leverage`) are returned as strings for JSON compatibility.
+
+**Note:** The `status` field reflects the trade lifecycle status (OPEN, CLOSED, LIQUIDATED, STOP_LOSS, TAKE_PROFIT) and is kept in sync between the Order and Trade tables. Both tables will show the same status for a given trade.
+
+#### **Delete User Account**
+```bash
+DELETE /api/v1/user/delete
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User account deleted successfully",
+  "userId": 1,
+  "email": "user123@gmail.com"
+}
+```
+
+**Description:** Permanently deletes the user account and all associated data. This will:
+- Close all open trades at current market prices
+- Return all remaining balances to the user
+- Delete all trade history and orders from the database
+- Remove the user from the trading engine
+- Clear authentication cookies
+
+**Warning:** This action is irreversible and will permanently delete all user data.
 
 ### 🎯 Trading Endpoints (Require Authentication)
 

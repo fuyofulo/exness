@@ -54,7 +54,8 @@ type EngineCommand =
   | 'GET_ASSET_PRICE'
   | 'CREATE_ACCOUNT'
   | 'CREATE_TRADE'
-  | 'CLOSE_TRADE';
+  | 'CLOSE_TRADE'
+  | 'DELETE_USER';
 
 
 interface EngineRequestBody {
@@ -92,6 +93,7 @@ app.post('/', authMiddleware, async (req, res) => {
             case 'GET_USD_BALANCE':
             case 'GET_ASSET_PRICE':
             case 'CREATE_ACCOUNT':
+            case 'DELETE_USER':
                 break;
             case 'CREATE_TRADE':
                 if (!body.asset) return badRequest('asset is required');
@@ -176,7 +178,7 @@ app.post('/', authMiddleware, async (req, res) => {
         const latency = endTime - startTime;
 
         // Create order record in database after engine response (skip for read-only commands)
-        if (!['CREATE_ACCOUNT', 'GET_BALANCE', 'GET_USD_BALANCE', 'GET_ASSET_PRICE'].includes(command)) {
+        if (!['CREATE_ACCOUNT', 'GET_BALANCE', 'GET_USD_BALANCE', 'GET_ASSET_PRICE', 'DELETE_USER'].includes(command)) {
             try {
                 const orderData = extractOrderData(command, body, payload, email, orderId, req.user!.userId);
                 await prisma.order.create({
@@ -223,17 +225,27 @@ app.post('/', authMiddleware, async (req, res) => {
 
         console.log(`Engine operation successful for ${orderId}`);
 
-        // Update order status to SUCCESS in database (skip for read-only commands)
-        if (!['CREATE_ACCOUNT', 'GET_BALANCE', 'GET_USD_BALANCE', 'GET_ASSET_PRICE'].includes(command)) {
+            // Update order status based on actual trade lifecycle status (skip for read-only commands)
+        if (!['CREATE_ACCOUNT', 'GET_BALANCE', 'GET_USD_BALANCE', 'GET_ASSET_PRICE', 'DELETE_USER'].includes(command)) {
             try {
+                let orderStatus = 'SUCCESS'; // Default for non-trade commands
+                
+                if (command === 'CREATE_TRADE') {
+                    // For trade creation, status should be OPEN (trade is now active)
+                    orderStatus = 'OPEN';
+                } else if (command === 'CLOSE_TRADE') {
+                    // For trade closure, status should be CLOSED (trade is now closed)
+                    orderStatus = 'CLOSED';
+                }
+                
                 await prisma.order.update({
                     where: { orderId },
                     data: {
-                        status: 'SUCCESS',
+                        status: orderStatus,
                         latencyMs: latency
                     }
                 });
-                console.log(`Order status updated to SUCCESS: ${orderId}`);
+                console.log(`Order status updated to ${orderStatus}: ${orderId}`);
             } catch (dbUpdateError: any) {
                 console.error('Failed to update order status:', dbUpdateError?.message || dbUpdateError);
                 // Continue anyway - don't block the response
@@ -259,9 +271,9 @@ app.post('/', authMiddleware, async (req, res) => {
                             entryPriceDecimals: 6,
                             liquidationPrice: engineData.liquidationPrice ? BigInt(Math.round(engineData.liquidationPrice * 1000000)) : null,
                             liquidationPriceDecimals: engineData.liquidationPrice ? 6 : null,
-                            stopLossPrice: body.stopLossPrice ? BigInt(Math.round(body.stopLossPrice * 1000000)) : null, // Optional stop loss (scaled for DB)
-                            takeProfitPrice: body.takeProfitPrice ? BigInt(Math.round(body.takeProfitPrice * 1000000)) : null, // Optional take profit (scaled for DB)
-                            triggerDecimals: (body.stopLossPrice || body.takeProfitPrice) ? 6 : null, // Decimals for triggers
+                            stopLossPrice: engineData.stopLossPrice ? BigInt(Math.round(engineData.stopLossPrice * 1000000)) : null, // Optional stop loss (scaled for DB)
+                            takeProfitPrice: engineData.takeProfitPrice ? BigInt(Math.round(engineData.takeProfitPrice * 1000000)) : null, // Optional take profit (scaled for DB)
+                            triggerDecimals: (engineData.stopLossPrice || engineData.takeProfitPrice) ? 6 : null, // Decimals for triggers
                             status: 'OPEN'
                         }
                     });

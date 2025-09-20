@@ -1,5 +1,6 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import { userRouter } from './routes/user';
 import { engineRouter } from './routes/engine';
 import { EventListener } from './eventlistener';
@@ -7,6 +8,15 @@ import { createClient } from 'redis';
 import { candlesRouter } from './routes/candles';
 
 const app = express();
+
+// CORS configuration
+app.use(cors({
+    origin: ['http://localhost:3000', 'http://localhost:3001'], // Allow both common Next.js ports
+    credentials: true, // Allow cookies to be sent
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+}));
+
 app.use(express.json());
 app.use(cookieParser());
 
