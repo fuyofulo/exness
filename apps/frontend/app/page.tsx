@@ -12,8 +12,8 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
       </div>
     );
   }
@@ -37,33 +37,33 @@ function AuthPage() {
     setIsLoading(true);
     try {
       await login(email);
-      toast.success('Check your email for the login link!');
+      toast.success('Check your email for the magic link!');
     } catch (error) {
-      toast.error('Failed to send login email');
+      toast.error('Failed to send magic link');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-black">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-white mb-2">Trading Exchange</h1>
-          <p className="text-gray-400">Enter your email to get started</p>
+          <h1 className="text-4xl font-bold text-white mb-2 font-mono">TRADING EXCHANGE</h1>
+          <p className="text-gray-400 font-mono">ENTER YOUR EMAIL TO GET STARTED</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-              Email Address
+            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2 font-mono">
+              EMAIL ADDRESS
             </label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
+              className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-lg focus:ring-2 focus:ring-white focus:border-transparent text-white placeholder-gray-400 font-mono"
               placeholder="your@email.com"
               required
             />
@@ -72,21 +72,21 @@ function AuthPage() {
           <button
             type="submit"
             disabled={isLoading || !email}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+            className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors border border-gray-800 font-mono"
           >
             {isLoading ? (
               <div className="flex items-center justify-center">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                Sending...
+                SENDING...
               </div>
             ) : (
-              'Send Login Link'
+              'SEND MAGIC LINK'
             )}
           </button>
         </form>
 
-        <div className="text-center text-sm text-gray-400">
-          <p>We'll send you a secure login link to your email</p>
+        <div className="text-center text-sm text-gray-400 font-mono">
+          <p>WE'LL SEND YOU A SECURE MAGIC LINK TO YOUR EMAIL</p>
         </div>
       </div>
     </div>
