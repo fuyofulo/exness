@@ -496,8 +496,8 @@ Consumer: 'liquidation_consumer'
 5. **Set up database**
    ```bash
    cd apps/backend
-   npx prisma migrate dev
-   npx prisma generate
+   npm run db:migrate    # Runs migration using centralized config
+   npm run db:generate   # Generates Prisma client using centralized config
    ```
 
 6. **Build and start the platform**
@@ -667,6 +667,77 @@ GET /api/v1/user/orders
 **Description:** Returns all orders for the authenticated user, ordered by ID (most recent first). BigInt fields (`amount`, `leverage`) are returned as strings for JSON compatibility.
 
 **Note:** The `status` field reflects the trade lifecycle status (OPEN, CLOSED, LIQUIDATED, STOP_LOSS, TAKE_PROFIT) and is kept in sync between the Order and Trade tables. Both tables will show the same status for a given trade.
+
+#### **Get User Trades**
+```bash
+GET /api/v1/user/trades
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "trades": [
+    {
+      "tradeId": "trade_1234567890",
+      "asset": "BTC_USDC",
+      "direction": "LONG",
+      "margin": "10000000",
+      "leverage": "225",
+      "entryPrice": "50000000000",
+      "entryPriceDecimals": 6,
+      "liquidationPrice": "45000000000",
+      "liquidationPriceDecimals": 6,
+      "stopLossPrice": "48000000000",
+      "takeProfitPrice": "52000000000",
+      "triggerDecimals": 6,
+      "exitPrice": "51000000000",
+      "exitPriceDecimals": 6,
+      "pnl": "450000",
+      "status": "CLOSED",
+      "createdAt": "2024-01-01T12:00:00.000Z",
+      "updatedAt": "2024-01-01T12:30:00.000Z",
+      "id": 1
+    },
+    {
+      "tradeId": "trade_0987654321",
+      "asset": "ETH_USDC",
+      "direction": "SHORT",
+      "margin": "5000000",
+      "leverage": "100",
+      "entryPrice": "2500000000",
+      "entryPriceDecimals": 6,
+      "liquidationPrice": "2750000000",
+      "liquidationPriceDecimals": 6,
+      "stopLossPrice": null,
+      "takeProfitPrice": "2400000000",
+      "triggerDecimals": 6,
+      "exitPrice": null,
+      "exitPriceDecimals": null,
+      "pnl": null,
+      "status": "OPEN",
+      "createdAt": "2024-01-01T13:00:00.000Z",
+      "updatedAt": "2024-01-01T13:00:00.000Z",
+      "id": 2
+    }
+  ],
+  "count": 2
+}
+```
+
+**Description:** Returns all trades for the authenticated user, ordered by ID (most recent first). BigInt fields (`margin`, `leverage`, `entryPrice`, `liquidationPrice`, `stopLossPrice`, `takeProfitPrice`, `exitPrice`, `pnl`) are returned as strings for JSON compatibility.
+
+**Fields Explained:**
+- **`margin`**: Initial margin used for the trade (in USD, scaled by 10000)
+- **`leverage`**: Leverage multiplier (e.g., "225" = 22.5x leverage)
+- **`entryPrice`**: Price at which the trade was opened (scaled by 10^decimals)
+- **`liquidationPrice`**: Price at which the trade will be liquidated (null if leverage ≤ 1x)
+- **`stopLossPrice`**: Stop loss trigger price (null if not set)
+- **`takeProfitPrice`**: Take profit trigger price (null if not set)
+- **`exitPrice`**: Price at which the trade was closed (null if still open)
+- **`exitPriceDecimals`**: Decimal precision for exit price (null if still open)
+- **`pnl`**: Profit/Loss realized from the trade (null if still open, positive = profit, negative = loss)
+- **`status`**: Current trade status (OPEN, CLOSED, LIQUIDATED, STOP_LOSS, TAKE_PROFIT)
 
 #### **Delete User Account**
 ```bash
@@ -1476,26 +1547,66 @@ exchange/
 
 ## 🔧 Configuration
 
-### Environment Variables
+### Centralized Environment Management
+
+This project uses a **centralized configuration approach** where all environment variables are managed in a single location: `packages/config/.env`.
+
+#### Environment Variables
+
+All environment variables are defined in `packages/config/.env`:
 
 ```bash
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/exchange"
+# Database Configuration
+PERSISTENT_DATABASE_URL="postgresql://postgres:password123@localhost:5432/exchange"
 
-# Redis
+# Redis Configuration  
 REDIS_URL="redis://localhost:6379"
 
-# JWT
-AUTH_JWT_SECRET="your-secret-key"
+# JWT Secrets (Generate strong random strings)
+AUTH_JWT_SECRET="your-super-secret-auth-jwt-key-here-make-it-long-and-random"
+EMAIL_JWT_SECRET="your-email-jwt-secret-here"
 
-# Engine
-ENGINE_SNAPSHOT_INTERVAL=5000   # 5 seconds
-ENGINE_MAX_SNAPSHOTS=10
+# Email Configuration (for user verification)
+GOOGLE_EMAIL="your-email@gmail.com"
+GOOGLE_APP_PASSWORD="your-google-app-password"
 
-# Price Poller
-POLLER_ASSETS="BTC_USDC,ETH_USDC,SOL_USDC"
-POLLER_UPDATE_INTERVAL=1000  # 1 second
+# Backend Configuration
+BACKEND_URL="http://localhost:3005"
 ```
+
+#### How It Works
+
+1. **Single Source of Truth**: All environment variables are defined in `packages/config/.env`
+2. **Config Package**: The `@repo/config` package loads these variables and exports them
+3. **Application Usage**: All apps import environment variables from `@repo/config`
+4. **Database Setup**: Prisma uses `dotenv-cli` to load variables from the config package
+
+#### Database Commands
+
+Since the database configuration is centralized, use these npm scripts in the backend:
+
+```bash
+cd apps/backend
+
+# Run database migrations using centralized config
+npm run db:migrate
+
+# Generate Prisma client using centralized config  
+npm run db:generate
+
+# Open Prisma Studio using centralized config
+npm run db:studio
+
+# Push schema changes using centralized config
+npm run db:push
+```
+
+#### Benefits
+
+- ✅ **Single source of truth** for all configuration
+- ✅ **No duplicate .env files** across the monorepo
+- ✅ **Consistent configuration** across all services
+- ✅ **Easy maintenance** - update once, applies everywhere
 
 ## 🚀 Deployment
 

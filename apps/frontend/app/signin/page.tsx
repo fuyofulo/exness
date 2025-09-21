@@ -42,38 +42,38 @@ function SigninContent() {
   }, [token, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-black">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-white mb-2">Trading Exchange</h1>
-          <p className="text-gray-400">Completing your sign in...</p>
+          <h1 className="text-4xl font-bold text-white mb-2 font-mono">TRADING EXCHANGE</h1>
+          <p className="text-gray-400 font-mono">COMPLETING YOUR SIGN IN...</p>
         </div>
 
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <div className="bg-gray-900 rounded-lg p-6 border border-gray-800">
           <div className="text-center">
             {status === 'loading' && (
               <>
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                <p className="text-gray-300">Verifying your email...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                <p className="text-gray-300 font-mono">VERIFYING YOUR EMAIL...</p>
               </>
             )}
 
             {status === 'success' && (
               <>
                 <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <p className="text-green-400 font-semibold">{message}</p>
+                <p className="text-green-400 font-semibold font-mono">{message}</p>
               </>
             )}
 
             {status === 'error' && (
               <>
                 <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                <p className="text-red-400 font-semibold">{message}</p>
+                <p className="text-red-400 font-semibold font-mono">{message}</p>
                 <button
                   onClick={() => router.push('/')}
-                  className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  className="mt-4 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors border border-gray-800 font-mono"
                 >
-                  Try Again
+                  TRY AGAIN
                 </button>
               </>
             )}
@@ -87,8 +87,8 @@ function SigninContent() {
 export default function SigninPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
       </div>
     }>
       <SigninContent />

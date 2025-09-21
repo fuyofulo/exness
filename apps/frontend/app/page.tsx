@@ -1,14 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../lib/auth-context';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { TradingDashboard } from '../components/TradingDashboard';
 
 export default function Home() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -19,7 +24,7 @@ export default function Home() {
   }
 
   if (isAuthenticated) {
-    return <TradingDashboard />;
+    return null; // Will redirect to dashboard
   }
 
   return <AuthPage />;

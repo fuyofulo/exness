@@ -28,22 +28,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuthStatus = async () => {
     try {
-      // Check if we have an auth cookie by making a request
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005/api/v1'}/engine`, {
-        method: 'POST',
+      console.log('🔍 Checking authentication status...');
+      // Check if we have an auth cookie by making a request to /me endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005/api/v1'}/user/me`, {
+        method: 'GET',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: 'GET_BALANCE' })
+        headers: { 'Content-Type': 'application/json' }
       });
+
+      console.log('🔍 Auth check response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.engineResponse?.data?.email) {
-          setUser({ email: data.engineResponse.data.email });
+        console.log('🔍 Auth check response data:', data);
+        if (data.user && data.user.email) {
+          console.log('✅ User authenticated:', data.user.email);
+          setUser({ email: data.user.email });
         }
+      } else {
+        console.log('❌ Authentication failed, status:', response.status);
       }
     } catch (error) {
-      console.log('Not authenticated');
+      console.log('❌ Authentication check error:', error);
     } finally {
       setIsLoading(false);
     }

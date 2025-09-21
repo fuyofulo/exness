@@ -33,12 +33,6 @@ export const tradingAPI = {
     return result;
   },
 
-  // Create account
-  async createAccount(): Promise<TradeResponse> {
-    const response = await api.post('/engine', { command: 'CREATE_ACCOUNT' });
-    return response.data;
-  },
-
   // Get candles data
   async getCandles(asset: string, interval: Timeframe = '1h'): Promise<CandleData[]> {
     const response = await api.get('/candles', {
@@ -52,12 +46,6 @@ export const tradingAPI = {
     const response = await api.get('/price', {
       params: { asset: `${asset}_USDC` }
     });
-    return response.data;
-  },
-
-  // Get supported assets
-  async getSupportedAssets(): Promise<string[]> {
-    const response = await api.get('/supportedAssets');
     return response.data;
   },
 };

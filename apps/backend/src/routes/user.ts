@@ -65,7 +65,7 @@ app.get('/signin/post', async (req, res) => {
             });
 
             console.log(`🔄 Existing user signed in successfully`);
-            res.redirect(`http://localhost:3000`);
+            res.redirect(`http://localhost:3000/dashboard`);
             return;
         }
 
@@ -112,7 +112,7 @@ app.get('/signin/post', async (req, res) => {
             });
 
             console.log(`New user signup completed successfully`);
-            res.redirect(`http://localhost:3000`);
+            res.redirect(`http://localhost:3000/dashboard`);
 
         } catch (engineError: any) {
             console.error('Failed to create account in engine:', engineError.response?.data || engineError.message);
@@ -244,6 +244,9 @@ app.get('/trades', authMiddleware, async (req, res) => {
                 stopLossPrice: true,
                 takeProfitPrice: true,
                 triggerDecimals: true,
+                exitPrice: true,
+                exitPriceDecimals: true,
+                pnl: true,
                 status: true,
                 createdAt: true,
                 updatedAt: true,
@@ -259,7 +262,9 @@ app.get('/trades', authMiddleware, async (req, res) => {
             entryPrice: trade.entryPrice ? trade.entryPrice.toString() : null,
             liquidationPrice: trade.liquidationPrice ? trade.liquidationPrice.toString() : null,
             stopLossPrice: trade.stopLossPrice ? trade.stopLossPrice.toString() : null,
-            takeProfitPrice: trade.takeProfitPrice ? trade.takeProfitPrice.toString() : null
+            takeProfitPrice: trade.takeProfitPrice ? trade.takeProfitPrice.toString() : null,
+            exitPrice: trade.exitPrice ? trade.exitPrice.toString() : null,
+            pnl: trade.pnl ? trade.pnl.toString() : null
         }));
 
         res.json({

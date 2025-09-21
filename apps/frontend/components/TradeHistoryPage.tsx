@@ -17,6 +17,9 @@ interface Trade {
   stopLossPrice: string | null;
   takeProfitPrice: string | null;
   triggerDecimals: number | null;
+  exitPrice: string | null;
+  exitPriceDecimals: number | null;
+  pnl: string | null;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -170,6 +173,9 @@ export function TradeHistoryPage() {
                     TAKE PROFIT
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider font-mono">
+                    PNL
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider font-mono">
                     STATUS
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider font-mono">
@@ -215,6 +221,15 @@ export function TradeHistoryPage() {
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-white font-mono">
                       {trade.takeProfitPrice ? `$${formatPrice(trade.takeProfitPrice, trade.triggerDecimals)}` : 'N/A'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm font-mono">
+                      {trade.pnl ? (
+                        <span className={parseFloat(trade.pnl) >= 0 ? 'text-green-400' : 'text-red-400'}>
+                          {parseFloat(trade.pnl) >= 0 ? '+' : ''}${formatAmount(trade.pnl)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">N/A</span>
+                      )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full font-mono ${getStatusColor(trade.status)}`}>
