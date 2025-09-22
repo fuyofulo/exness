@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { GOOGLE_EMAIL, GOOGLE_APP_PASSWORD, BACKEND_URL } from '@repo/config';
+import { GOOGLE_EMAIL, GOOGLE_APP_PASSWORD, WEB_BASE_URL } from '@repo/config';
 
 const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -15,7 +15,7 @@ export async function sendSignupEmail (email: string, token: string) {
         from: 'pheonixdiaz625@gmail.com',
         to: email,
         subject: 'super 30 assignment',
-        text: `go to this url: http://localhost:3005/api/v1/user/signin/post?token=${token}`
+        text: `go to this url: ${WEB_BASE_URL}/api/v1/user/signin/post?token=${token}`
     })
 
     return sendEmail;

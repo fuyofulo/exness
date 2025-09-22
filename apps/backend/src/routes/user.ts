@@ -2,7 +2,7 @@ import router from 'express';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
 import { sendSignupEmail } from '../utils/sendEmail';
-import { EMAIL_JWT_SECRET, AUTH_JWT_SECRET } from '@repo/config';
+import { EMAIL_JWT_SECRET, AUTH_JWT_SECRET, WEB_BASE_URL, BACKEND_PUBLIC_URL } from '@repo/config';
 import { PrismaClient } from '../../prisma/generated';
 import { authMiddleware } from '../middleware';
 
@@ -65,7 +65,7 @@ app.get('/signin/post', async (req, res) => {
             });
 
             console.log(`🔄 Existing user signed in successfully`);
-            res.redirect(`http://localhost:3000/dashboard`);
+            res.redirect(`${WEB_BASE_URL}/dashboard`);
             return;
         }
 
@@ -80,7 +80,7 @@ app.get('/signin/post', async (req, res) => {
             }, AUTH_JWT_SECRET, { expiresIn: '7d' });
 
             // Call engine to create account
-            const engineResponse = await axios.post('http://localhost:3005/api/v1/engine', {
+            const engineResponse = await axios.post(`${BACKEND_PUBLIC_URL}/engine`, {
                 command: 'CREATE_ACCOUNT'
             }, {
                 headers: {
@@ -112,7 +112,7 @@ app.get('/signin/post', async (req, res) => {
             });
 
             console.log(`New user signup completed successfully`);
-            res.redirect(`http://localhost:3000/dashboard`);
+            res.redirect(`${WEB_BASE_URL}/dashboard`);
 
         } catch (engineError: any) {
             console.error('Failed to create account in engine:', engineError.response?.data || engineError.message);
@@ -291,7 +291,7 @@ app.delete('/delete', authMiddleware, async (req, res) => {
 
         // Step 1: Delete user from engine (this will close all open trades and return balances)
         try {
-            const engineResponse = await axios.post('http://localhost:3005/api/v1/engine', {
+            const engineResponse = await axios.post(`${BACKEND_PUBLIC_URL}/api/v1/engine`, {
                 command: 'DELETE_USER'
             }, {
                 headers: {

@@ -4,11 +4,13 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:3005/api/v1
+      - NEXT_PUBLIC_API_URL=${PUBLIC_API_URL}
       - NODE_ENV=production
     ports:
-      - "127.0.0.1:3000:3000"
+      - "0.0.0.0:3000:3000"
     depends_on:
       backend:
         condition: service_started
@@ -27,7 +29,7 @@ services:
       - PERSISTENT_DATABASE_URL=postgresql://postgres:postgres@db:5432/exchange
       - REDIS_URL=redis://redis:6379
     ports:
-      - "127.0.0.1:3005:3005"
+      - "0.0.0.0:3005:3005"
     depends_on:
       db:
         condition: service_healthy

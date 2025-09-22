@@ -1,24 +1,54 @@
 import express from 'express';
-import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import { userRouter } from './routes/user';
 import { engineRouter } from './routes/engine';
 import { EventListener } from './eventlistener';
 import { createClient } from 'redis';
 import { candlesRouter } from './routes/candles';
+import { ALLOWED_ORIGINS, WEB_BASE_URL } from '@repo/config';
 
 const app = express();
 
-// CORS configuration
-app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'], // Allow both common Next.js ports
-    credentials: true, // Allow cookies to be sent
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
-}));
+function parseOrigins(): string[] {
+    const list: string[] = [];
+    if(ALLOWED_ORIGINS) {
+        list.push(
+            ...ALLOWED_ORIGINS
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean),
+        )
+    }
+    if(WEB_BASE_URL) {
+        try {
+            const u = new URL(WEB_BASE_URL);
+            list.push(`${u.protocol}//${u.host}`);
+        } catch (error) {
+            console.error('Error parsing WEB_BASE_URL:', error);
+        }
+    }
+    return Array.from(new Set(list));
+}
+
+const allowedOrigins = parseOrigins();
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, cb) => {
+    // Allow non-browser tools (no Origin header)
+    if (!origin) return cb(null, true);
+    return cb(null, allowedOrigins.includes(origin));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
 
 app.use(express.json());
-app.use(cookieParser());
 
 const supportedAssets = [
     'SOL_USDC',
