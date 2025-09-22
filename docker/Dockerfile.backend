@@ -13,6 +13,7 @@ COPY . .
 
 # Generate Prisma client and build
 WORKDIR /app/apps/backend
+ENV NODE_OPTIONS=--max-old-space-size=1536
 RUN npx prisma generate --schema prisma/schema.prisma
 RUN npm run build
 
