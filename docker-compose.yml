@@ -22,7 +22,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.backend
-    working_dir: /app/apps/backend
     env_file:
       - apps/backend/.env
     ports:
@@ -34,6 +33,7 @@ services:
         condition: service_healthy
     command: >
       sh -lc "
+        cd /app/apps/backend &&
         npx prisma generate --schema prisma/schema.prisma &&
         (npx prisma migrate deploy --schema prisma/schema.prisma || npx prisma db push --schema prisma/schema.prisma) &&
         node dist/index.js
