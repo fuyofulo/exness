@@ -1,4 +1,4 @@
-import router from 'express';
+import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
 import { sendSignupEmail } from '../utils/sendEmail';
@@ -6,7 +6,7 @@ import { EMAIL_JWT_SECRET, AUTH_JWT_SECRET, WEB_BASE_URL, BACKEND_PUBLIC_URL } f
 import { PrismaClient } from '../../prisma/generated';
 import { authMiddleware } from '../middleware';
 
-const app = router();
+const app = Router();
 const prisma = new PrismaClient();
 
 if(!EMAIL_JWT_SECRET || !AUTH_JWT_SECRET) {

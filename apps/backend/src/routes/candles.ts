@@ -1,6 +1,6 @@
 import axios from 'axios';
-import router from 'express';
-const app = router();
+import { Router } from 'express';
+const app = Router();
 
 app.get('/', async (req, res) => {
     try {

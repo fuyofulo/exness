@@ -1,5 +1,5 @@
-import router from 'express';
-const app = router();
+import { Router } from 'express';
+const app = Router();
 import { v4 as uuidv4 } from "uuid";
 import { createClient } from 'redis';
 import { RedisSuscriber } from '../utils/orderResponse';
