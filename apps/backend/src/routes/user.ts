@@ -80,7 +80,7 @@ app.get('/signin/post', async (req, res) => {
             }, AUTH_JWT_SECRET, { expiresIn: '7d' });
 
             // Call engine to create account
-            const engineResponse = await axios.post(`${BACKEND_PUBLIC_URL}/engine`, {
+            const engineResponse = await axios.post(`${BACKEND_PUBLIC_URL}/api/v1/engine`, {
                 command: 'CREATE_ACCOUNT'
             }, {
                 headers: {
@@ -291,7 +291,7 @@ app.delete('/delete', authMiddleware, async (req, res) => {
 
         // Step 1: Delete user from engine (this will close all open trades and return balances)
         try {
-            const engineResponse = await axios.post(`${BACKEND_PUBLIC_URL}/engine`, {
+            const engineResponse = await axios.post(`${BACKEND_PUBLIC_URL}/api/v1/engine`, {
                 command: 'DELETE_USER'
             }, {
                 headers: {
