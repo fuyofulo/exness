@@ -4,11 +4,11 @@ import { listenToOrders } from './listener/orders';
 import { RedisClientType } from 'redis';
 import { SnapshotManager } from './snapshot/SnapshotManager';
 import { RecoveryManager } from './snapshot/RecoveryManager';
-import { REDIS_URL } from '@repo/config';
+
 
 async function main() {
     const rClient = createClient({
-        url: REDIS_URL
+        url: "redis://redis:6379"
     });
     await rClient.connect();
 

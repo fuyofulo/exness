@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { AUTH_JWT_SECRET } from '@repo/config';
+import dotenv from 'dotenv';
+dotenv.config();
+const { AUTH_JWT_SECRET } = process.env;
 
 // Extend Express Request to include user info
 declare global {
-  namespace Express {
+  namespace Express { 
     interface Request {
       user?: {
         email: string;

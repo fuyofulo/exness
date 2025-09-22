@@ -1,33 +1,22 @@
-# ---------- Builder ----------
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Copy repo
+COPY package*.json ./
+COPY apps/engine/package*.json ./apps/engine/
+RUN npm ci
+
 COPY . .
-
-# 1) Install & build @repo/config before engine (engine imports @repo/config)
-WORKDIR /app/packages/config
-RUN npm ci
-RUN npm run build
-
-# 2) Install & build engine
 WORKDIR /app/apps/engine
-RUN npm ci
 RUN npm run build
 
-# ---------- Runner ----------
+# Runner
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Copy runtime artifacts
-COPY --from=builder /app/apps/engine/dist /app/apps/engine/dist
-COPY --from=builder /app/apps/engine/node_modules /app/apps/engine/node_modules
+COPY --from=builder /app/apps/engine/dist ./apps/engine/dist
+COPY apps/engine/package*.json ./apps/engine/
+WORKDIR /app/apps/engine
+RUN npm ci --production
 
-# Include local package so file: dependency resolves at runtime
-COPY --from=builder /app/packages/config /app/packages/config
-
-# Expose only if engine provides an HTTP port; otherwise omit
-# EXPOSE 8080
-
-CMD ["node", "apps/engine/dist/index.js"]
+CMD ["node", "dist/index.js"]

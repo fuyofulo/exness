@@ -4,7 +4,6 @@ import * as zlib from 'zlib';
 import { promisify } from 'util';
 import { userBalances } from '../memory/balance';
 import { openTrades, closedTrades, tradeTriggerBitmaps } from '../memory/trades';
-import { priceCache } from '../memory/price';
 import { EngineSnapshot, SnapshotData } from './types';
 import {
   calculateChecksum,

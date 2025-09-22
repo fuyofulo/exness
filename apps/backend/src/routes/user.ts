@@ -2,9 +2,13 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
 import { sendSignupEmail } from '../utils/sendEmail';
-import { EMAIL_JWT_SECRET, AUTH_JWT_SECRET, WEB_BASE_URL, BACKEND_PUBLIC_URL } from '@repo/config';
+import dotenv from 'dotenv';
 import { PrismaClient } from '../../prisma/generated';
 import { authMiddleware } from '../middleware';
+
+dotenv.config();
+
+const { EMAIL_JWT_SECRET, AUTH_JWT_SECRET, WEB_BASE_URL, BACKEND_PUBLIC_URL } = process.env;
 
 const app = Router();
 const prisma = new PrismaClient();

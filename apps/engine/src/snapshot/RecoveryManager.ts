@@ -4,7 +4,6 @@ import * as zlib from 'zlib';
 import { promisify } from 'util';
 import { userBalances, createUserAccount } from '../memory/balance';
 import { openTrades, closedTrades, tradeTriggerBitmaps, userTrades } from '../memory/trades';
-import { priceCache } from '../memory/price';
 import { EngineSnapshot, SerializedUserBalance, SerializedTrade, SerializedTriggerBitmaps } from './types';
 import { validateSnapshot, stringToBigInt } from './utils';
 

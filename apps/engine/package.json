@@ -14,7 +14,6 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@repo/config": "file:../../packages/config",
     "dotenv": "^17.2.2",
     "node": "^22.19.0",
     "redis": "^5.8.2",
