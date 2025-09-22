@@ -1,0 +1,23 @@
+# ---------- Builder ----------
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Copy repo
+COPY . .
+
+# Install deps and build poller
+WORKDIR /app/apps/poller
+RUN npm ci
+RUN npm run build
+
+# ---------- Runner ----------
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Copy runtime artifacts
+COPY --from=builder /app/apps/poller/dist /app/apps/poller/dist
+COPY --from=builder /app/apps/poller/node_modules /app/apps/poller/node_modules
+COPY --from=builder /app/packages/config /app/packages/config
+
+CMD ["node", "apps/poller/dist/index.js"]

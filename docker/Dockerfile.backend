@@ -1,0 +1,31 @@
+# ---------- Builder ----------
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Copy repo
+COPY . .
+
+# Install deps and build backend
+WORKDIR /app/apps/backend
+RUN npm ci
+
+# Generate Prisma client (no DB URL needed)
+RUN npx prisma generate --schema prisma/schema.prisma || true
+
+# Build TS -> dist
+RUN npm run build
+
+# ---------- Runner ----------
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Copy runtime artifacts
+COPY --from=builder /app/apps/backend/dist /app/apps/backend/dist
+COPY --from=builder /app/apps/backend/node_modules /app/apps/backend/node_modules
+COPY --from=builder /app/apps/backend/prisma /app/apps/backend/prisma
+COPY --from=builder /app/packages/config /app/packages/config
+
+
+EXPOSE 3005
+CMD ["node", "apps/backend/dist/index.js"]

@@ -9,7 +9,9 @@ export class EventListener {
     private isRunning: boolean = false;
 
     constructor() {
-        this.client = createClient();
+        this.client = createClient({
+            url: "redis://redis:6379"
+        });
         this.prisma = new PrismaClient();
         this.setupEventHandlers();
     }

@@ -1,0 +1,25 @@
+# ---------- Builder ----------
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Copy repo
+COPY . .
+
+# Install deps and build engine
+WORKDIR /app/apps/engine
+RUN npm ci
+RUN npm run build
+
+# ---------- Runner ----------
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Copy runtime artifacts
+COPY --from=builder /app/apps/engine/dist /app/apps/engine/dist
+COPY --from=builder /app/apps/engine/node_modules /app/apps/engine/node_modules
+COPY --from=builder /app/packages/config /app/packages/config
+
+
+# No HTTP port unless engine exposes one
+CMD ["node", "apps/engine/dist/index.js"]

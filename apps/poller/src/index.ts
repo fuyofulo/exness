@@ -1,5 +1,6 @@
 import WebSocket from 'ws';
 import { createClient } from 'redis';
+import { REDIS_URL } from '@repo/config';
 const ws = new WebSocket(('wss://ws.backpack.exchange/'));
 
 const assets: string[] = ['BTC_USDC', 'ETH_USDC', 'SOL_USDC'];
@@ -25,7 +26,9 @@ const SOURCE: string = 'poller';
 const latestPrices: Map<string, priceUpdate> = new Map();
 
 ws.on('open', async () => {
-    const rClient = createClient();
+    const rClient = createClient({
+        url: REDIS_URL
+    });
     await rClient.connect();
 
     console.log('Connected to the WebSocket');

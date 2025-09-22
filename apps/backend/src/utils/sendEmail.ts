@@ -15,7 +15,7 @@ export async function sendSignupEmail (email: string, token: string) {
         from: 'pheonixdiaz625@gmail.com',
         to: email,
         subject: 'super 30 assignment',
-        text: `go to this url: ${BACKEND_URL}/api/v1/user/signin/post?token=${token}`
+        text: `go to this url: http://localhost:3005/api/v1/user/signin/post?token=${token}`
     })
 
     return sendEmail;

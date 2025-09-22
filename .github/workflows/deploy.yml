@@ -1,0 +1,49 @@
+name: Deploy to GCP VM
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      - name: Start VM (if stopped)
+        run: |
+          gcloud compute instances start ${{ secrets.GCP_VM_NAME }} \
+            --zone=${{ secrets.GCP_VM_ZONE }}
+
+      - name: Deploy Compose stack
+        run: |
+          gcloud compute ssh ${{ secrets.GCP_VM_NAME }} \
+            --zone=${{ secrets.GCP_VM_ZONE }} \
+            --command "
+              set -euo pipefail
+              REPO_DIR=exchange
+              if [ -d \"$REPO_DIR\" ]; then rm -rf \"$REPO_DIR\"; fi
+              git clone https://github.com/${{ github.repository }} $REPO_DIR
+              cd $REPO_DIR
+              docker compose down -v || true
+              docker stop \$(docker ps -aq) || true
+              docker rm \$(docker ps -aq) || true
+              docker volume prune -f || true
+              docker network prune -f || true
+              docker compose build --no-cache
+              docker compose up -d
+            "

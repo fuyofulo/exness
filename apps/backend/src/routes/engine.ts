@@ -130,7 +130,9 @@ app.post('/', authMiddleware, async (req, res) => {
                 return badRequest('unsupported command');
         }
 
-        const rClient = createClient();
+        const rClient = createClient({
+            url: "redis://redis:6379"
+        });
         await rClient.connect();
 
         // Normalize payload: set default leverage for CREATE_TRADE

@@ -62,7 +62,9 @@ process.on('SIGTERM', async () => {
 
 // http://localhost:3005?asset=SOL_USDC
 app.get('/api/v1/price', async (req, res) => {
-    const redisclient = createClient();
+    const redisclient = createClient({
+        url: "redis://redis:6379"
+    });
     await redisclient.connect();
     const asset = req.query.asset as string;
     const price = await redisclient.get(`price:${asset}`);

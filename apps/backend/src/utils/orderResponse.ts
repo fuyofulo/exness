@@ -6,7 +6,9 @@ export class RedisSuscriber {
     private callbacks: Record<string, any>;
 
     constructor() {
-        this.client = createClient();
+        this.client = createClient({
+            url: "redis://redis:6379"
+        });
         this.client.connect();
         this.callbacks = {};
     }
