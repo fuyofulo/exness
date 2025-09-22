@@ -5,15 +5,16 @@ WORKDIR /app
 # Copy repo
 COPY . .
 
-# Install deps and build backend
+# 1) Install & build @repo/config first (backend imports @repo/config)
+WORKDIR /app/packages/config
+RUN npm ci
+RUN npm run build
+
+# 2) Build backend
 WORKDIR /app/apps/backend
 ENV NODE_OPTIONS=--max-old-space-size=1536
 RUN npm ci
-
-# Generate Prisma client (no DB URL needed)
 RUN npx prisma generate --schema prisma/schema.prisma || true
-
-# Build TS -> dist
 RUN npm run build
 
 # ---------- Runner ----------
@@ -26,7 +27,6 @@ COPY --from=builder /app/apps/backend/dist /app/apps/backend/dist
 COPY --from=builder /app/apps/backend/node_modules /app/apps/backend/node_modules
 COPY --from=builder /app/apps/backend/prisma /app/apps/backend/prisma
 COPY --from=builder /app/packages/config /app/packages/config
-
 
 EXPOSE 3005
 CMD ["node", "apps/backend/dist/index.js"]
