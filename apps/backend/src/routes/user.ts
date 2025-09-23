@@ -1,140 +1,134 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
-import { sendSignupEmail } from '../utils/sendEmail';
+import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import { PrismaClient } from '../../prisma/generated';
 import { authMiddleware } from '../middleware';
 
 dotenv.config();
 
-const { EMAIL_JWT_SECRET, AUTH_JWT_SECRET, WEB_BASE_URL, BACKEND_PUBLIC_URL } = process.env;
+const { AUTH_JWT_SECRET, BACKEND_PUBLIC_URL } = process.env;
 
 const app = Router();
 const prisma = new PrismaClient();
 
-if(!EMAIL_JWT_SECRET || !AUTH_JWT_SECRET) {
-    console.log('EMAIL_JWT_SECRET or AUTH_JWT_SECRET is not set');
+if(!AUTH_JWT_SECRET) {
+    console.log('AUTH_JWT_SECRET is not set');
     process.exit(1);
 }
 
 app.post('/signup', async (req, res) => {
+    const { email, password } = req.body;
 
-    const email = req.body.email;
-    const token = jwt.sign({ email }, EMAIL_JWT_SECRET, { expiresIn: '5m' });
-
-    const success = await sendSignupEmail(email, token);
-
-    if (!success) {
-        res.status(500).json({
-            message: 'failed to send email'
-        })
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password required' });
     }
 
-    res.status(200).json({
-        message: 'successfully sent email'
-    })
-});
-
-app.get('/signin/post', async (req, res) => {
-    console.log('endpoint has been hit');
-
-    const token = req.query.token as string;
-
     try {
-        console.log('inside try');
-        const decoded = jwt.verify(token, EMAIL_JWT_SECRET) as { email: string };
-        console.log('decoded');
-        const email = decoded.email;
-        console.log(email);
-
-        // 🔍 STEP 1: CHECK IF USER EXISTS IN BACKEND DATABASE
+        // Check if user already exists
         const existingUser = await prisma.user.findUnique({
             where: { email },
         });
 
         if (existingUser) {
-            console.log(`Existing user ${email} found (ID: ${existingUser.id})`);
-
-            // Generate auth token for existing user
-            const authToken = jwt.sign({
-                email,
-                userId: existingUser.id
-            }, AUTH_JWT_SECRET, { expiresIn: '7d' });
-
-            res.cookie("authToken", authToken, {
-                httpOnly: true,
-                secure: false,
-                sameSite: "lax",
-            });
-
-            console.log(`🔄 Existing user signed in successfully`);
-            res.redirect(`${WEB_BASE_URL}/dashboard`);
-            return;
+            return res.status(400).json({ message: 'User already exists' });
         }
 
-        // Step 2: New user - create account in engine first
         console.log(`New user ${email} - creating account in engine first...`);
 
-        try {
-            // Generate temp auth token (we don't have userId yet)
-            const tempAuthToken = jwt.sign({
-                email,
-                userId: 0 // Temporary
-            }, AUTH_JWT_SECRET, { expiresIn: '7d' });
+        // Generate temp auth token (we don't have userId yet)
+        const tempAuthToken = jwt.sign({
+            email,
+            userId: 0 // Temporary
+        }, AUTH_JWT_SECRET, { expiresIn: '7d' });
 
-            // Call engine to create account
-            const engineResponse = await axios.post(`${BACKEND_PUBLIC_URL}/api/v1/engine`, {
-                command: 'CREATE_ACCOUNT'
-            }, {
-                headers: {
-                    'Cookie': `authToken=${tempAuthToken}`
-                }
-            });
+        // Call engine to create account
+        const engineResponse = await axios.post(`${BACKEND_PUBLIC_URL}/api/v1/engine`, {
+            command: 'CREATE_ACCOUNT'
+        }, {
+            headers: {
+                'Authorization': `Bearer ${tempAuthToken}`
+            }
+        });
 
-            console.log('Engine account created successfully');
+        console.log('Engine account created successfully');
 
-            // Step 3: Now create user in backend database
-            const newUser = await prisma.user.create({
-                data: { email }
-            });
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-            console.log(`User ${newUser.email} created in database (ID: ${newUser.id})`);
+        // Create user in backend database
+        const newUser = await prisma.user.create({
+            data: { email, password: hashedPassword }
+        });
 
-                // Note: Balances are maintained in-engine only, no database storage needed
+        console.log(`User ${newUser.email} created in database (ID: ${newUser.id})`);
 
-            // Step 5: Generate proper auth token with real user ID
-            const authToken = jwt.sign({
-                email,
-                userId: newUser.id
-            }, AUTH_JWT_SECRET, { expiresIn: '7d' });
+        // Generate JWT token
+        const authToken = jwt.sign({
+            email,
+            userId: newUser.id
+        }, AUTH_JWT_SECRET, { expiresIn: '7d' });
 
-            res.cookie("authToken", authToken, {
-                httpOnly: true,
-                secure: false,
-                sameSite: "lax",
-            });
+        console.log(`New user signup completed successfully`);
 
-            console.log(`New user signup completed successfully`);
-            res.redirect(`${WEB_BASE_URL}/dashboard`);
+        res.status(201).json({
+            success: true,
+            token: authToken,
+            message: 'User created successfully'
+        });
 
-        } catch (engineError: any) {
-            console.error('Failed to create account in engine:', engineError.response?.data || engineError.message);
+    } catch (engineError: any) {
+        console.error('Failed to create account in engine:', engineError.response?.data || engineError.message);
+        res.status(500).json({
+            message: "Failed to create trading account. Please try again."
+        });
+    }
+});
 
-            // If engine fails, don't create user in database - return error
-            res.status(500).json({
-                message: "Failed to create trading account. Please try again."
-            });
-            return;
+// Add this new /signin route (replace the old /signin/post):
+app.post('/signin', async (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password required' });
+    }
+
+    try {
+        // Find user
+        const user = await prisma.user.findUnique({
+            where: { email },
+        });
+
+        if (!user) {
+            return res.status(401).json({ message: 'Invalid credentials' });
         }
+
+        // Check password
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        if (!isValidPassword) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        // Generate JWT token
+        const authToken = jwt.sign({
+            email: user.email,
+            userId: user.id
+        }, AUTH_JWT_SECRET, { expiresIn: '7d' });
+
+        console.log(`User ${email} signed in successfully`);
+
+        res.json({
+            success: true,
+            token: authToken,
+            message: 'Signin successful'
+        });
 
     } catch (error) {
         console.error('Signin error:', error);
-        res.status(500).json({
-            message: "failed to signin"
-        })
+        res.status(500).json({ message: 'Signin failed' });
     }
-})
+});
 
 // Cleanup on exit
 process.on('beforeExit', async () => {
@@ -295,11 +289,12 @@ app.delete('/delete', authMiddleware, async (req, res) => {
 
         // Step 1: Delete user from engine (this will close all open trades and return balances)
         try {
+            const authToken = req.headers.authorization?.replace('Bearer ', '');
             const engineResponse = await axios.post(`${BACKEND_PUBLIC_URL}/api/v1/engine`, {
                 command: 'DELETE_USER'
             }, {
                 headers: {
-                    'Cookie': `authToken=${req.cookies.authToken}`
+                    'Authorization': `Bearer ${authToken}`
                 }
             });
 
@@ -346,12 +341,7 @@ app.delete('/delete', authMiddleware, async (req, res) => {
             });
         }
 
-        // Step 3: Clear the auth cookie
-        res.clearCookie('authToken', {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax'
-        });
+        // Token is handled on frontend
 
         res.json({
             success: true,

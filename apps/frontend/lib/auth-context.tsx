@@ -9,8 +9,8 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string) => Promise<void>;
-  signup: (email: string) => Promise<void>;
+  signup: (email: string, password: string) => Promise<any>;
+  signin: (email: string, password: string) => Promise<any>;
   logout: () => void;
   deleteAccount: () => Promise<void>;
 }
@@ -29,11 +29,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkAuthStatus = async () => {
     try {
       console.log('🔍 Checking authentication status...');
-      // Check if we have an auth cookie by making a request to /me endpoint
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.log('❌ No auth token in localStorage');
+        setIsLoading(false);
+        return;
+      }
+
+      // Check authentication with token in header
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005/api/v1'}/user/me`, {
         method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       console.log('🔍 Auth check response status:', response.status);
@@ -55,28 +64,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signup = async (email: string) => {
+  const signup = async (email: string, password: string) => {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005/api/v1'}/user/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+      body: JSON.stringify({ email, password })
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      throw new Error('Signup failed');
+      throw new Error(data.message || 'Signup failed');
     }
+
+    // Store token and redirect
+    if (data.token) {
+      localStorage.setItem('authToken', data.token);
+      setUser({ email });
+    }
+
+    return data;
   };
 
-  const login = async (email: string) => {
-    // For this platform, login and signup are the same - user clicks email link
-    await signup(email);
-    // The backend will send an email with a link to /signin?token=...
+  const signin = async (email: string, password: string) => {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005/api/v1'}/user/signin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Signin failed');
+    }
+
+    // Store token and set user
+    if (data.token) {
+      localStorage.setItem('authToken', data.token);
+      setUser({ email });
+    }
+
+    return data;
   };
 
   const logout = () => {
     setUser(null);
-    // Clear cookies by making a request to logout endpoint (if exists)
-    document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    localStorage.removeItem('authToken');
   };
 
   const deleteAccount = async () => {
@@ -85,8 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.success) {
         toast.success('Account deleted successfully');
         setUser(null);
-        // Clear cookies
-        document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        localStorage.removeItem('authToken');
         // Redirect to home page
         window.location.href = '/';
       } else {
@@ -102,8 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     isLoading,
     isAuthenticated: !!user,
-    login,
     signup,
+    signin,
     logout,
     deleteAccount,
   };

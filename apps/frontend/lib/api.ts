@@ -11,6 +11,20 @@ const api = axios.create({
   },
 });
 
+// Add request interceptor to include Authorization header
+api.interceptors.request.use((config) => {
+  console.log('Axios interceptor: Adding auth header');
+  const token = localStorage.getItem('authToken');
+  console.log('Token from localStorage:', token);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+    console.log('Added Authorization header');
+  } else {
+    console.log('No token found');
+  }
+  return config;
+});
+
 // API Methods
 export const tradingAPI = {
   // Execute trading commands
@@ -52,20 +66,6 @@ export const tradingAPI = {
 
 // Authentication API
 export const authAPI = {
-  // Signup - sends email
-  async signup(email: string): Promise<{ message: string }> {
-    const response = await api.post('/user/signup', { email });
-    return response.data;
-  },
-
-  // Signin - completes signup via email link
-  async signin(token: string): Promise<{ message: string }> {
-    const response = await api.get('/user/signin/post', {
-      params: { token }
-    });
-    return response.data;
-  },
-
   // Delete user account
   async deleteAccount(): Promise<{ success: boolean; message: string }> {
     const response = await api.delete('/user/delete');

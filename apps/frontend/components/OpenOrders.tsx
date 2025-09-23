@@ -32,9 +32,13 @@ export function OpenOrders() {
 
   const loadOrders = async () => {
     try {
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005/api/v1'}/user/orders`, {
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
       });
 
       if (response.ok) {

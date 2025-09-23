@@ -4,8 +4,9 @@ WORKDIR /app
 
 # Copy backend package.json first for caching
 COPY apps/backend/package*.json ./apps/backend/
+# Force rebuild
 WORKDIR /app/apps/backend
-RUN npm ci
+RUN npm install
 
 # Copy source
 WORKDIR /app
